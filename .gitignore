@@ -6,6 +6,7 @@ cmake_install.cmake
 Makefile
 GIT-GITHUB-HOWTO.md
 CRONIK_DEVELOPMENT*.md
+CRONIC_DEVELOPMENT*.md
 debug_match_frame.png
 
 # Objektdateien und Binärdateien
