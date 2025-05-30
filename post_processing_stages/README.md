@@ -218,7 +218,7 @@ The stage uses OpenCV to find a template (from a second stream or file) in the m
 | 0     | No debug output, no debug image                                                         |
 | 1     | Prints center position and size of rectangle, saves debug image                         |
 | 2     | Like 1, plus prints minVal and maxVal for each method                                   |
-| 3+    | Like 2, plus zusätzliche Testausgaben (z.B. "Matching loop, debug_level_: ...")         |
+| 3+    | Like 2, plus additional test/debug output (e.g. "Matching loop, debug_level_: ...")     |
 
 ---
 

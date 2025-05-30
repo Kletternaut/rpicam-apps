@@ -28,4 +28,4 @@ Thumbs.db
 # Sonstige temporäre Dateien
 *.user
 *.bak
-*.old
+*.olddebug_match_frame.png
