@@ -6,6 +6,8 @@ cmake_install.cmake
 Makefile
 GIT-GITHUB-HOWTO.md
 CRONIK_DEVELOPMENT*.md
+debug_match_frame.png
+
 # Objektdateien und Binärdateien
 *.o
 *.obj
@@ -28,4 +30,5 @@ Thumbs.db
 # Sonstige temporäre Dateien
 *.user
 *.bak
-*.olddebug_match_frame.png
+*.old
+
