@@ -199,11 +199,16 @@ The stage uses OpenCV to find a template (from a second stream or file) in the m
 ```json
 {
     "template_match": {
-        "match_fps": 10,
+        "match_fps": 2,
         "active_methods": [true, false, false],
-        "fixed_scale": 0.1,
+        "scale_min": 0.1,
+        "scale_max": 1.00,
+        "scale_step": 0.1,
+        "rescale_threshold": 0.75,
         "match_threshold": 0.8,
-        "debug_level": 2,
+        "auto_scale": true,
+        "fixed_scale": 0.1,
+        "debug_level": 0,
         "rtsp_port": 8555
     }
 }
@@ -231,18 +236,25 @@ The stage uses OpenCV to find a template (from a second stream or file) in the m
 2. **Template Preparation:**  
    - The template can be resized to a fixed width/height and then scaled by a fixed factor.
 
-3. **Matching:**  
+3. **Auto-Scaling (Optional):**  
+   - If `auto_scale` is enabled, the stage automatically searches for the best matching scale of the template within a specified range (`scale_min`, `scale_max`, `scale_step`).
+   - For each scale and enabled method, the best match score and position are determined.
+   - If a sufficiently good match is found for several consecutive frames, the auto-scaling "locks" to the detected scale for faster processing.
+   - If the match quality drops below the threshold, auto-scaling is unlocked and the search resumes.
+   - The current auto-scaling status and locked scale are shown in the debug output (level 3).
+
+4. **Matching:**  
    - OpenCV's `matchTemplate` is used with the enabled methods (`cv::TM_CCOEFF_NORMED`, `cv::TM_SQDIFF_NORMED`, `cv::TM_CCORR_NORMED`).
    - For each enabled method, the best match score and position are determined.
 
-4. **Visualization:**  
+5. **Visualization:**  
    - For each enabled method, a rectangle is drawn at the detected position:
      - White (4px): `cv::TM_CCOEFF_NORMED`
      - Gray (2px): `cv::TM_SQDIFF_NORMED`
      - Black (1px): `cv::TM_CCORR_NORMED`
    - All rectangles are drawn at the same position, only thickness and grayscale value differ.
 
-5. **Debug:**  
+6. **Debug:**  
    - Controlled via `debug_level` (see table above).
    - Optionally, a debug image with overlays is saved.
 

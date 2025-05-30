@@ -4,10 +4,8 @@
  * Copyright (C) 2025, github.com/Kletternaut
  *
  * template_match_stage.cpp
- * Version 0.3
- */
-
-/*
+ * Version 0.4
+ *
  * TemplateMatchStage:
  * This post-processing stage enables template matching in the camera stream using OpenCV.
  * An external template image (e.g. from an RTSP stream) is searched within the main image.
@@ -100,6 +98,9 @@ public:
         // Optional: Kompatibilität zu debug (true/false)
         if (params.get_optional<bool>("debug"))
             debug_level_ = params.get<bool>("debug") ? 1 : 0;
+
+        if (params.get_optional<bool>("auto_scale"))
+            auto_scale_ = params.get<bool>("auto_scale");
     }
 
     // Configures the streams (e.g. "video" and "lores")
@@ -124,6 +125,10 @@ public:
     // Main processing: template matching and visualization
     bool Process(CompletedRequestPtr &completed_request) override
     {
+        // Debug: Zeige an, in welchem Modus wir sind
+        if (debug_level_ >= 2)
+            std::cout << "[DEBUG] auto_scale_: " << auto_scale_ << " | autoscale_locked_: " << autoscale_locked_ << std::endl;
+
         // Framerate control: only perform matching every X ms
         auto now = std::chrono::steady_clock::now();
         int elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_match_time_).count();
@@ -164,58 +169,210 @@ public:
         if (img1.empty() || img1.cols > img0.cols || img1.rows > img0.rows)
             return false;
 
-        // Resize template to fixed scaling factor
-        cv::Mat scaled_img1;
-        cv::resize(img1, scaled_img1, cv::Size(), fixed_scale_, fixed_scale_, cv::INTER_AREA);
-
-        if (scaled_img1.cols > img0.cols || scaled_img1.rows > img0.rows)
-            return false;
-
-        // Array for methods and corresponding grayscale colors
+        // Declare matching method arrays at the beginning of the function
         const int num_methods = 3;
         int methods[num_methods] = { cv::TM_CCOEFF_NORMED, cv::TM_SQDIFF_NORMED, cv::TM_CCORR_NORMED };
         cv::Scalar colors[num_methods] = { cv::Scalar(255), cv::Scalar(127), cv::Scalar(0) }; // White, Gray, Black
         int thickness[num_methods] = { 4, 2, 1 };
 
-        // For each enabled method, perform matching and draw rectangle
-        for (int i = 0; i < num_methods; ++i) {
-            if (!active_methods_[i]) continue;
+        if (auto_scale_) {
+            if (!autoscale_locked_) {
+                if (debug_level_ >= 2)
+                    std::cout << "[DEBUG] === AUTOSCALING SUCHMODUS ===" << std::endl;
+                double best_score = -1e9;
+                double best_scale = fixed_scale_;
+                int best_method = 0;
+                Point best_center, best_p1, best_p2;
 
-            // Testausgabe NUR für debug_level >= 3
-            if (debug_level_ >= 3) {
-                std::cout << "Matching loop, debug_level_: " << debug_level_ << std::endl;
-            }
+                for (double scale = scale_min_; scale <= scale_max_; scale += scale_step_) {
+                    cv::Mat scaled_img1;
+                    cv::resize(img1, scaled_img1, cv::Size(), scale, scale, cv::INTER_AREA);
 
-            cv::Mat result;
-            matchTemplate(img0, scaled_img1, result, methods[i]);
-            double minVal, maxVal;
-            Point minLoc, maxLoc;
-            minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc);
+                    if (debug_level_ >= 3)
+                        std::cout << "[Auto-Scale][DEBUG] Teste scale: " << scale
+                                  << " | Templategröße: " << scaled_img1.cols << "x" << scaled_img1.rows << std::endl;
 
-            Point matchLoc = (methods[i] == cv::TM_SQDIFF || methods[i] == cv::TM_SQDIFF_NORMED) ? minLoc : maxLoc;
-            Point p1 = matchLoc;
-            Point p2 = Point(matchLoc.x + scaled_img1.cols, matchLoc.y + scaled_img1.rows);
+                    if (scaled_img1.cols > img0.cols || scaled_img1.rows > img0.rows)
+                        continue;
 
-            // Calculate center point
-            Point center((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+                    for (int i = 0; i < num_methods; ++i) {
+                        if (!active_methods_[i]) continue;
 
-            rectangle(img0, p1, p2, colors[i], thickness[i]);
+                        cv::Mat result;
+                        matchTemplate(img0, scaled_img1, result, methods[i]);
+                        double minVal, maxVal;
+                        Point minLoc, maxLoc;
+                        minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc);
 
-            // Debug-Ausgabe je nach Level
-            if (debug_level_ >= 1) {
-                std::cout << "Method " << i
-                          << " | center: (" << center.x << "," << center.y << ")"
-                          << " | size: (" << scaled_img1.cols << "x" << scaled_img1.rows << ")";
-                if (debug_level_ >= 2) {
-                    std::cout << " | minVal: " << minVal << " | maxVal: " << maxVal;
+                        double score = (methods[i] == cv::TM_SQDIFF || methods[i] == cv::TM_SQDIFF_NORMED) ? -minVal : maxVal;
+                        Point matchLoc = (methods[i] == cv::TM_SQDIFF || methods[i] == cv::TM_SQDIFF_NORMED) ? minLoc : maxLoc;
+                        Point p1 = matchLoc;
+                        Point p2 = Point(matchLoc.x + scaled_img1.cols, matchLoc.y + scaled_img1.rows);
+                        Point center((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+
+                        // Grün für höchste Matching-Quote
+                        if (debug_level_ >= 3) {
+                            if (score > best_score) {
+                                std::cout << "\033[32m"; // Grün
+                            }
+                            std::cout << "[Auto-Scale][SEARCH] scale: " << scale
+                                      << " | method: " << i
+                                      << " | score: " << score
+                                      << " | center: (" << center.x << "," << center.y << ")"
+                                      << " | minVal: " << minVal << " | maxVal: " << maxVal
+                                      << "\033[0m" << std::endl; // Reset Farbe
+                        }
+
+                        if (score > best_score) {
+                            best_score = score;
+                            best_scale = scale;
+                            best_method = i;
+                            best_center = center;
+                            best_p1 = p1;
+                            best_p2 = p2;
+                        }
+                    }
                 }
-                std::cout << std::endl;
-            }
-        }
 
-        // Save debug image (outside the loop)
-        if (debug_level_ >= 1) {
-            cv::imwrite("debug_match_frame.png", img0);
+                rectangle(img0, best_p1, best_p2, colors[best_method], thickness[best_method]);
+                if (debug_level_ >= 1) {
+                    std::cout << "[Auto-Scale][SEARCH] Best scale: " << best_scale
+                              << " | Method: " << best_method
+                              << " | Score: " << best_score
+                              << " | Center: (" << best_center.x << "," << best_center.y << ")"
+                              << std::endl;
+                }
+                if (debug_level_ >= 1) {
+                    cv::imwrite("debug_match_frame.png", img0);
+                }
+
+                if (best_score > match_threshold_) {
+                    autoscale_success_counter_++;
+                    if (autoscale_success_counter_ >= autoscale_success_needed_) {
+                        autoscale_locked_ = true;
+                        locked_scale_ = best_scale;
+                        if (debug_level_ >= 1)
+                            std::cout << "[Auto-Scale][LOCKED] Locked scale: " << locked_scale_ << std::endl;
+                    }
+                } else {
+                    autoscale_success_counter_ = 0;
+                }
+            } else {
+                if (debug_level_ >= 2)
+                    std::cout << "[DEBUG] === AUTOSCALING LOCKED === (locked_scale_=" << locked_scale_ << ")" << std::endl;
+                cv::Mat scaled_img1;
+                cv::resize(img1, scaled_img1, cv::Size(), locked_scale_, locked_scale_, cv::INTER_AREA);
+
+                if (scaled_img1.cols > img0.cols || scaled_img1.rows > img0.rows)
+                    return false;
+
+                double best_score_locked = -1e9;
+                int best_method_locked = 0;
+                Point best_center_locked, best_p1_locked, best_p2_locked;
+
+                for (int i = 0; i < num_methods; ++i) {
+                    if (!active_methods_[i]) continue;
+
+                    cv::Mat result;
+                    matchTemplate(img0, scaled_img1, result, methods[i]);
+                    double minVal, maxVal;
+                    Point minLoc, maxLoc;
+                    minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc);
+
+                    double score = (methods[i] == cv::TM_SQDIFF || methods[i] == cv::TM_SQDIFF_NORMED) ? -minVal : maxVal;
+                    Point matchLoc = (methods[i] == cv::TM_SQDIFF || methods[i] == cv::TM_SQDIFF_NORMED) ? minLoc : maxLoc;
+                    Point p1 = matchLoc;
+                    Point p2 = Point(matchLoc.x + scaled_img1.cols, matchLoc.y + scaled_img1.rows);
+                    Point center((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+
+                    if (score > best_score_locked) {
+                        best_score_locked = score;
+                        best_method_locked = i;
+                        best_center_locked = center;
+                        best_p1_locked = p1;
+                        best_p2_locked = p2;
+                    }
+                }
+
+                rectangle(img0, best_p1_locked, best_p2_locked, colors[best_method_locked], thickness[best_method_locked]);
+                if (debug_level_ >= 1) {
+                    std::cout << "[Auto-Scale][LOCKED] LOCKED scale: " << locked_scale_
+                              << " | Method: " << best_method_locked
+                              << " | Score: " << best_score_locked
+                              << " | Center: (" << best_center_locked.x << "," << best_center_locked.y << ")"
+                              << std::endl;
+                }
+                if (debug_level_ >= 1) {
+                    cv::imwrite("debug_match_frame.png", img0);
+                }
+
+                // Unlock autoscaling if no match
+                if (best_score_locked < match_threshold_) {
+                    autoscale_locked_ = false;
+                    autoscale_success_counter_ = 0;
+                    if (debug_level_ >= 1)
+                        std::cout << "[Auto-Scale][UNLOCK] Unlocking, resume searching..." << std::endl;
+                }
+            }
+        } else {
+            if (debug_level_ >= 2)
+                std::cout << "[DEBUG] === FIXED SCALE MODUS === (fixed_scale_=" << fixed_scale_ << ")" << std::endl;
+            cv::Mat scaled_img1;
+            cv::resize(img1, scaled_img1, cv::Size(), fixed_scale_, fixed_scale_, cv::INTER_AREA);
+
+            if (scaled_img1.cols > img0.cols || scaled_img1.rows > img0.rows)
+                return false;
+
+            double best_score_fixed = -1e9;
+            int best_method_fixed = 0;
+            Point best_center_fixed, best_p1_fixed, best_p2_fixed;
+
+            for (int i = 0; i < num_methods; ++i) {
+                if (!active_methods_[i]) continue;
+
+                cv::Mat result;
+                matchTemplate(img0, scaled_img1, result, methods[i]);
+                double minVal, maxVal;
+                Point minLoc, maxLoc;
+                minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc);
+
+                double score = (methods[i] == cv::TM_SQDIFF || methods[i] == cv::TM_SQDIFF_NORMED) ? -minVal : maxVal;
+                Point matchLoc = (methods[i] == cv::TM_SQDIFF || methods[i] == cv::TM_SQDIFF_NORMED) ? minLoc : maxLoc;
+                Point p1 = matchLoc;
+                Point p2 = Point(matchLoc.x + scaled_img1.cols, matchLoc.y + scaled_img1.rows);
+                Point center((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+
+                if (score > best_score_fixed) {
+                    best_score_fixed = score;
+                    best_method_fixed = i;
+                    best_center_fixed = center;
+                    best_p1_fixed = p1;
+                    best_p2_fixed = p2;
+                }
+
+                if (debug_level_ >= 2) {
+                    std::cout << "[Fixed-Scale][SEARCH] Method: " << i
+                              << " | Scale: " << fixed_scale_
+                              << " | Score: " << score
+                              << " | Center: (" << center.x << "," << center.y << ")"
+                              << " | Size: (" << scaled_img1.cols << "x" << scaled_img1.rows << ")"
+                              << " | minVal: " << minVal << " | maxVal: " << maxVal
+                              << std::endl;
+                }
+            }
+
+            rectangle(img0, best_p1_fixed, best_p2_fixed, colors[best_method_fixed], thickness[best_method_fixed]);
+            if (debug_level_ >= 1) {
+                std::cout << "[Fixed-Scale][SEARCH] Best method: " << best_method_fixed
+                          << " | Scale: " << fixed_scale_
+                          << " | Score: " << best_score_fixed
+                          << " | Center: (" << best_center_fixed.x << "," << best_center_fixed.y << ")"
+                          << " | Size: (" << scaled_img1.cols << "x" << scaled_img1.rows << ")"
+                          << std::endl;
+            }
+            if (debug_level_ >= 1) {
+                cv::imwrite("debug_match_frame.png", img0);
+            }
         }
 
         return false;
@@ -247,11 +404,16 @@ private:
     bool debug_ = false;
     bool debug_center_ = false;
     int debug_level_ = 0;
+    bool auto_scale_ = false;
+    bool autoscale_locked_ = false;
 
     // --- Additional members ---
     int template_width_ = 0;
     int template_height_ = 0;
     int rtsp_port_ = 8554; // Default port for RTSP/UDP stream
+    double locked_scale_ = 0.1;
+    int autoscale_success_counter_ = 0;
+    const int autoscale_success_needed_ = 3; // Number of consecutive matches to lock autoscale
     std::chrono::steady_clock::time_point last_match_time_{};
 };
 
