@@ -32,18 +32,26 @@ class TemplateMatchStage : public PostProcessingStage
 public:
     // Constructor: Initializes GStreamer VideoCapture for external stream
     TemplateMatchStage(RPiCamApp *app)
-        : PostProcessingStage(app), active_methods_{true, true, true},
-          cap_("udpsrc port=8554 caps=\"application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96\" "
-               "! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! appsink",
-               cv::CAP_GSTREAMER)
-    {}
+        : PostProcessingStage(app), active_methods_{true, true, true}
+    {
+        // Do NOT open cap_ here!
+    }
 
     // Name of the stage (for registration)
     char const *Name() const override { return "template_match"; }
 
     // Reads configuration parameters from JSON (via boost::property_tree)
     void Read(boost::property_tree::ptree const &params) override {
-        // Enabled matching methods (only relevant with multiple methods)
+        std::cout << "Read() called!" << std::endl;
+        if (params.get_optional<bool>("debug"))
+            debug_ = params.get<bool>("debug");
+        std::cout << "debug_ after reading: " << debug_ << std::endl;
+
+        // Debug options
+        if (params.get_optional<bool>("debug_center"))
+            debug_center_ = params.get<bool>("debug_center");
+
+        // Enabled matching methods
         if (params.get_child_optional("active_methods")) {
             size_t i = 0;
             for (auto &v : params.get_child("active_methods")) {
@@ -51,7 +59,8 @@ public:
                     active_methods_[i++] = v.second.get_value<bool>();
             }
         }
-        // How often matching is performed per second
+
+        // Matching FPS
         if (params.get_optional<int>("match_fps"))
             match_fps_ = params.get<int>("match_fps");
         min_match_interval_ms_ = 1000 / std::max(1, match_fps_);
@@ -62,29 +71,35 @@ public:
         if (params.get_optional<int>("template_height"))
             template_height_ = params.get<int>("template_height");
 
-        // (Not used with fixed scaling, but for future extension)
+        // Scaling parameters
         if (params.get_optional<double>("scale_min"))
             scale_min_ = params.get<double>("scale_min");
         if (params.get_optional<double>("scale_max"))
             scale_max_ = params.get<double>("scale_max");
         if (params.get_optional<double>("scale_step"))
             scale_step_ = params.get<double>("scale_step");
+
+        // Thresholds
         if (params.get_optional<double>("maxval_threshold"))
             maxval_threshold_ = params.get<double>("maxval_threshold");
-
-        // Thresholds for matching and rescaling
         if (params.get_optional<double>("rescale_threshold"))
             rescale_threshold_ = params.get<double>("rescale_threshold");
         if (params.get_optional<double>("match_threshold"))
             match_threshold_ = params.get<double>("match_threshold");
-        // Fixed scaling factor for the template
+
+        // Fixed scaling factor
         if (params.get_optional<double>("fixed_scale"))
             fixed_scale_ = params.get<double>("fixed_scale");
-        // Enable debug output
+
+        // RTSP port
+        if (params.get_optional<int>("rtsp_port"))
+            rtsp_port_ = params.get<int>("rtsp_port");
+
+        if (params.get_optional<int>("debug_level"))
+            debug_level_ = params.get<int>("debug_level");
+        // Optional: Kompatibilität zu debug (true/false)
         if (params.get_optional<bool>("debug"))
-            debug_ = params.get<bool>("debug");
-        if (params.get_optional<bool>("debug_center"))
-            debug_center_ = params.get<bool>("debug_center");
+            debug_level_ = params.get<bool>("debug") ? 1 : 0;
     }
 
     // Configures the streams (e.g. "video" and "lores")
@@ -94,17 +109,22 @@ public:
         for (const auto &kv : app_->GetStreams())
             std::cout << "  " << kv.first << std::endl;
 
-        // Adjust the names to the output!
         stream0_ = app_->GetStream("video");
         stream1_ = app_->GetStream("lores");
         if (!stream0_ || !stream1_)
             throw std::runtime_error("TemplateMatchStage: Streams not found!");
+
+        std::ostringstream gst_str;
+        gst_str << "udpsrc port=" << rtsp_port_
+                << " caps=\"application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96\" "
+                << "! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! appsink";
+        cap_.open(gst_str.str(), cv::CAP_GSTREAMER);
     }
 
-    // Main processing: Template matching and visualization
+    // Main processing: template matching and visualization
     bool Process(CompletedRequestPtr &completed_request) override
     {
-        // Frame rate control: Matching only every X ms
+        // Framerate control: only perform matching every X ms
         auto now = std::chrono::steady_clock::now();
         int elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_match_time_).count();
         bool do_match = elapsed >= min_match_interval_ms_;
@@ -129,14 +149,14 @@ public:
         else
             img1 = cam1_frame;
 
-        // Scale template to fixed size if necessary
+        // Resize template to fixed size if specified
         if (template_width_ > 0 && template_height_ > 0) {
             cv::resize(img1, img1, cv::Size(template_width_, template_height_), 0, 0, cv::INTER_AREA);
         }
 
-        // Matching only if interval is reached
+        // Only perform matching if interval reached
         if (!do_match) {
-            // Optional: Show overlay only, no matching
+            // Optionally: only show overlay, no matching
             return false;
         }
 
@@ -144,14 +164,14 @@ public:
         if (img1.empty() || img1.cols > img0.cols || img1.rows > img0.rows)
             return false;
 
-        // Bring template to fixed scaling factor
+        // Resize template to fixed scaling factor
         cv::Mat scaled_img1;
         cv::resize(img1, scaled_img1, cv::Size(), fixed_scale_, fixed_scale_, cv::INTER_AREA);
 
         if (scaled_img1.cols > img0.cols || scaled_img1.rows > img0.rows)
             return false;
 
-        // Array for methods and associated grayscale colors
+        // Array for methods and corresponding grayscale colors
         const int num_methods = 3;
         int methods[num_methods] = { cv::TM_CCOEFF_NORMED, cv::TM_SQDIFF_NORMED, cv::TM_CCORR_NORMED };
         cv::Scalar colors[num_methods] = { cv::Scalar(255), cv::Scalar(127), cv::Scalar(0) }; // White, Gray, Black
@@ -160,6 +180,11 @@ public:
         // For each enabled method, perform matching and draw rectangle
         for (int i = 0; i < num_methods; ++i) {
             if (!active_methods_[i]) continue;
+
+            // Testausgabe NUR für debug_level >= 3
+            if (debug_level_ >= 3) {
+                std::cout << "Matching loop, debug_level_: " << debug_level_ << std::endl;
+            }
 
             cv::Mat result;
             matchTemplate(img0, scaled_img1, result, methods[i]);
@@ -176,22 +201,20 @@ public:
 
             rectangle(img0, p1, p2, colors[i], thickness[i]);
 
-            // Debug output for center point ONLY if probability is high
-            bool is_high_prob = false;
-            if (methods[i] == cv::TM_SQDIFF || methods[i] == cv::TM_SQDIFF_NORMED)
-                is_high_prob = (minVal <= match_threshold_);
-            else
-                is_high_prob = (maxVal >= match_threshold_);
-
-            if (debug_ && debug_center_ && is_high_prob) {
-                std::cout << "Method " << i << " | maxVal: " << maxVal
-                          << " | pos: (" << matchLoc.x << "," << matchLoc.y << ")"
-                          << " | center: (" << center.x << "," << center.y << ")" << std::endl;
+            // Debug-Ausgabe je nach Level
+            if (debug_level_ >= 1) {
+                std::cout << "Method " << i
+                          << " | center: (" << center.x << "," << center.y << ")"
+                          << " | size: (" << scaled_img1.cols << "x" << scaled_img1.rows << ")";
+                if (debug_level_ >= 2) {
+                    std::cout << " | minVal: " << minVal << " | maxVal: " << maxVal;
+                }
+                std::cout << std::endl;
             }
         }
 
         // Save debug image (outside the loop)
-        if (debug_) {
+        if (debug_level_ >= 1) {
             cv::imwrite("debug_match_frame.png", img0);
         }
 
@@ -223,10 +246,12 @@ private:
     double fixed_scale_ = 0.1;
     bool debug_ = false;
     bool debug_center_ = false;
+    int debug_level_ = 0;
 
-    // --- Missing members to be added ---
+    // --- Additional members ---
     int template_width_ = 0;
     int template_height_ = 0;
+    int rtsp_port_ = 8554; // Default port for RTSP/UDP stream
     std::chrono::steady_clock::time_point last_match_time_{};
 };
 

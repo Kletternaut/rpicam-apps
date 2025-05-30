@@ -8,7 +8,7 @@
         "rescale_threshold": 0.75,
         "match_threshold": 0.8,
         "fixed_scale": 0.1,
-        "debug": false,
-        "debug_center": true
+        "debug_level": 0,
+        "rtsp_port": 8555
     }
 }

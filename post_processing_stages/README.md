@@ -192,7 +192,8 @@ The stage uses OpenCV to find a template (from a second stream or file) in the m
 | fixed_scale       | double  | Fixed scaling factor for the template (e.g., 0.1)                           |
 | match_threshold   | double  | Threshold above which a match is considered valid (e.g., 0.8)               |
 | rescale_threshold | double  | Threshold for rescaling (optional, for dynamic scaling)                     |
-| debug             | bool    | Enables debug output in the terminal                                        |
+| rtsp_port         | int     | UDP port for external template stream (default: 8554)                       |
+| debug_level       | int     | Debug output level (see below)                                              |
 
 **Example:**
 ```json
@@ -202,10 +203,22 @@ The stage uses OpenCV to find a template (from a second stream or file) in the m
         "active_methods": [true, false, false],
         "fixed_scale": 0.1,
         "match_threshold": 0.8,
-        "debug": true
+        "debug_level": 2,
+        "rtsp_port": 8555
     }
 }
 ```
+
+---
+
+## Debug Levels
+
+| Level | Output                                                                                   |
+|-------|-----------------------------------------------------------------------------------------|
+| 0     | No debug output, no debug image                                                         |
+| 1     | Prints center position and size of rectangle, saves debug image                         |
+| 2     | Like 1, plus prints minVal and maxVal for each method                                   |
+| 3+    | Like 2, plus zusätzliche Testausgaben (z.B. "Matching loop, debug_level_: ...")         |
 
 ---
 
@@ -230,7 +243,7 @@ The stage uses OpenCV to find a template (from a second stream or file) in the m
    - All rectangles are drawn at the same position, only thickness and grayscale value differ.
 
 5. **Debug:**  
-   - If debug is enabled, score, scaling, and position are printed to the terminal.
+   - Controlled via `debug_level` (see table above).
    - Optionally, a debug image with overlays is saved.
 
 ---
