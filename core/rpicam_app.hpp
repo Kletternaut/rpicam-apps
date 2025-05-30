@@ -188,6 +188,8 @@ public:
 	friend class BufferReadSync;
 	friend class PostProcessor;
 	friend struct Options;
+	
+	const std::map<std::string, Stream *> &GetStreams() const { return streams_; } //template_match_stage
 
 protected:
 	std::unique_ptr<Options> options_;

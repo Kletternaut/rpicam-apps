@@ -1,0 +1,14 @@
+{
+    "template_match": {
+        "match_fps": 2,
+        "active_methods": [true, false, false],
+        "scale_min": 0.05,
+        "scale_max": 0.20,
+        "scale_step": 0.05,
+        "rescale_threshold": 0.75,
+        "match_threshold": 0.8,
+        "fixed_scale": 0.1,
+        "debug": false,
+        "debug_center": true
+    }
+}
