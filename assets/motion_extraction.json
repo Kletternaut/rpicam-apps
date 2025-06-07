@@ -1,0 +1,9 @@
+{
+    "motion_extraction" : {
+    	"prerecord_frames": 90,
+        "frame_offset": 1,
+        "fixed_frame": false,
+        "scale": 1.0,
+        "skip_uv_diff": false
+    }
+}
