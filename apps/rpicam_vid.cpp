@@ -99,7 +99,7 @@ static void event_loop(RPiCamEncoder &app)
 			}
 			else
 				cl.set(libcamera::controls::ScalerCrop, crop);
-			LOG(1, "ROI selection: ScalerCrop=" << crop.toString());
+			LOG(1, "ROI selected: --roi " << x << "," << y << "," << w << "," << h);
 			app.SetControls(cl);
 		});
 
