@@ -105,6 +105,32 @@ static void event_loop(RPiCamEncoder &app)
 		LOG_ERROR("ControlSocket: failed to initialise – runtime control unavailable");
 	const bool ctrl_is_pisp = app.SupportsScalerCrops();
 
+	// ROI selection via Qt preview: user drags a rectangle on the preview window (--qt-preview only).
+	// The callback fires on the Qt thread and applies the crop directly via SetControls.
+	app.SetPreviewRoiCallback(
+		[&app, ctrl_is_pisp](float x, float y, float w, float h)
+		{
+			libcamera::Rectangle sensor = app.GetSensorArea();
+			x = std::clamp(x, 0.0f, 1.0f);
+			y = std::clamp(y, 0.0f, 1.0f);
+			w = std::clamp(w, 0.0f, 1.0f - x);
+			h = std::clamp(h, 0.0f, 1.0f - y);
+			libcamera::Rectangle crop(sensor.x + static_cast<int>(x * sensor.width),
+									  sensor.y + static_cast<int>(y * sensor.height),
+									  static_cast<unsigned int>(w * sensor.width),
+									  static_cast<unsigned int>(h * sensor.height));
+			libcamera::ControlList cl(libcamera::controls::controls);
+			if (ctrl_is_pisp)
+			{
+				const std::vector<libcamera::Rectangle> crops = { crop };
+				cl.set(libcamera::controls::rpi::ScalerCrops,
+					   libcamera::Span<const libcamera::Rectangle>(crops.data(), crops.size()));
+			}
+			else
+				cl.set(libcamera::controls::ScalerCrop, crop);
+			LOG(1, "ROI selection: ScalerCrop=" << crop.toString());
+			app.SetControls(cl);
+		});
 	// Monitoring for keypresses and signals.
 	signal(SIGUSR1, default_signal_handler);
 	signal(SIGUSR2, default_signal_handler);

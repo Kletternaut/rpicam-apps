@@ -24,6 +24,8 @@ class Preview
 {
 public:
 	typedef std::function<void(int fd)> DoneCallback;
+	// Called when the user finishes drawing a ROI selection (x, y, w, h in [0..1]).
+	typedef std::function<void(float, float, float, float)> RoiCallback;
 
 	Preview(Options const *options) : options_(options)
 	{
@@ -36,6 +38,11 @@ public:
 	void SetDoneCallback(DoneCallback callback)
 	{
 		done_callback_ = callback;
+	}
+	// Optional: set a callback for interactive ROI selection (Qt preview only).
+	virtual void SetRoiCallback(RoiCallback cb)
+	{
+		(void)cb;
 	}
 	virtual void SetInfoText(const std::string &text)
 	{
