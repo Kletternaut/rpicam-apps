@@ -1014,6 +1014,12 @@ bool RPiCamApp::SupportsScalerCrops() const
 	return camera_->controls().count(&libcamera::controls::rpi::ScalerCrops) > 0;
 }
 
+void RPiCamApp::SetPreviewRoiCallback(std::function<void(float, float, float, float)> cb)
+{
+	if (preview_)
+		preview_->SetRoiCallback(std::move(cb));
+}
+
 StreamInfo RPiCamApp::GetStreamInfo(Stream const *stream) const
 {
 	StreamConfiguration const &cfg = stream->configuration();

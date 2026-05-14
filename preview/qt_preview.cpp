@@ -17,11 +17,14 @@
 #include <QApplication>
 #include <QImage>
 #include <QMainWindow>
+#include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QWidget>
 
 #include "preview.hpp"
+
+class QtPreview; // forward declaration for MyWidget
 
 class MyMainWindow : public QMainWindow
 {
@@ -42,20 +45,63 @@ protected:
 class MyWidget : public QWidget
 {
 public:
-	MyWidget(QWidget *parent, int w, int h) : QWidget(parent), size(w, h)
+	MyWidget(QWidget *parent, int w, int h, QtPreview *owner = nullptr) : QWidget(parent), size(w, h), owner_(owner)
 	{
 		image = QImage(size, QImage::Format_RGB888);
 		image.fill(0);
+		setMouseTracking(true);
 	}
 	QSize size;
 	QImage image;
+
+	QRect selection_ {};
+	bool selecting_ = false;
+	bool roi_active_ = false; // true while a sub-frame ROI is applied
+	QPoint start_pos_;
+	QtPreview *owner_ = nullptr;
 
 protected:
 	void paintEvent(QPaintEvent *) override
 	{
 		QPainter painter(this);
 		painter.drawImage(rect(), image, image.rect());
+		if (!selection_.isNull())
+		{
+			QPen pen(QColor(0, 180, 255, 200));
+			pen.setWidth(1);
+			painter.setPen(pen);
+			painter.setBrush(Qt::NoBrush);
+			painter.drawRect(selection_);
+		}
 	}
+	void mousePressEvent(QMouseEvent *event) override
+	{
+		if (event->button() == Qt::LeftButton && !roi_active_)
+		{
+			selecting_ = true;
+			start_pos_ = event->pos();
+			selection_ = QRect(start_pos_, start_pos_);
+			update();
+		}
+	}
+	void mouseMoveEvent(QMouseEvent *event) override
+	{
+		if (selecting_)
+		{
+			int dx = event->pos().x() - start_pos_.x();
+			int dy = event->pos().y() - start_pos_.y();
+			// Constrain selection to the preview window's aspect ratio so the
+			// resulting ScalerCrop matches the output resolution AR exactly.
+			float ar = float(width()) / float(height());
+			if (std::abs(dx) >= static_cast<int>(std::abs(dy) * ar))
+				dy = (dy >= 0 ? 1 : -1) * static_cast<int>(std::abs(dx) / ar);
+			else
+				dx = (dx >= 0 ? 1 : -1) * static_cast<int>(std::abs(dy) * ar);
+			selection_ = QRect(start_pos_, start_pos_ + QPoint(dx, dy)).normalized();
+			update();
+		}
+	}
+	void mouseReleaseEvent(QMouseEvent *event) override;
 	QSize sizeHint() const override
 	{
 		return size;
@@ -90,6 +136,13 @@ public:
 	void SetInfoText(const std::string &text) override
 	{
 		main_window_->setWindowTitle(QString::fromStdString(text));
+	}
+	void SetRoiCallback(RoiCallback cb) override
+	{
+		// SetRoiCallback is called after the constructor (pane_ is already set).
+		// mouseReleaseEvent fires on the Qt thread, writes happen on the main thread
+		// before any user interaction — so no lock needed in this context.
+		roi_callback_ = std::move(cb);
 	}
 	virtual void Show(int fd, libcamera::Span<uint8_t> span, StreamInfo const &info) override
 	{
@@ -208,6 +261,14 @@ public:
 	}
 
 private:
+	friend class MyWidget;
+
+	void SelectionFinished(float x, float y, float w, float h)
+	{
+		if (roi_callback_)
+			roi_callback_(x, y, w, h);
+	}
+
 	void threadFunc(Options const *options)
 	{
 		// This acts as Qt's event loop. Really Qt prefers to own the application's event loop
@@ -219,7 +280,7 @@ private:
 		application_ = &application;
 		MyMainWindow main_window;
 		main_window_ = &main_window;
-		MyWidget pane(&main_window, window_width_, window_height_);
+		MyWidget pane(&main_window, window_width_, window_height_, this);
 		main_window.setCentralWidget(&pane);
 		// Need to get the window border sizes (it seems to be unreasonably difficult...)
 		main_window.move(options->Get().preview_x + 2, options->Get().preview_y + 28);
@@ -236,7 +297,44 @@ private:
 	std::mutex mutex_;
 	std::condition_variable cond_var_;
 	std::vector<uint8_t> tmp_stripe_;
+	RoiCallback roi_callback_;
 };
+
+// Out-of-line definition: QtPreview must be complete before MyWidget::mouseReleaseEvent
+// can call owner_->SelectionFinished().
+void MyWidget::mouseReleaseEvent(QMouseEvent *event)
+{
+	if (event->button() == Qt::RightButton)
+	{
+		// Right-click: reset ROI to full frame.
+		selecting_ = false;
+		roi_active_ = false;
+		selection_ = QRect();
+		update();
+		if (owner_)
+			owner_->SelectionFinished(0.0f, 0.0f, 1.0f, 1.0f);
+		return;
+	}
+
+	if (selecting_ && event->button() == Qt::LeftButton)
+	{
+		selecting_ = false;
+		selection_ = QRect(start_pos_, event->pos()).normalized();
+		update();
+
+		if (owner_ && !selection_.isNull() && width() > 0 && height() > 0)
+		{
+			float roi_x = float(selection_.left()) / float(width());
+			float roi_y = float(selection_.top()) / float(height());
+			float roi_w = float(selection_.width()) / float(width());
+			float roi_h = float(selection_.height()) / float(height());
+			roi_active_ = true;
+			selection_ = QRect(); // clear rectangle before applying
+			update();
+			owner_->SelectionFinished(roi_x, roi_y, roi_w, roi_h);
+		}
+	}
+}
 
 static Preview *Create(Options const *options)
 {

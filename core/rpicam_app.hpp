@@ -171,6 +171,7 @@ public:
 	void SetControls(const ControlList &controls);
 	Rectangle GetSensorArea() const;
 	bool SupportsScalerCrops() const;
+	void SetPreviewRoiCallback(std::function<void(float, float, float, float)> cb);
 	StreamInfo GetStreamInfo(Stream const *stream) const;
 	const ControlList &GetProperties() const
 	{
