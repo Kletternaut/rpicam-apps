@@ -56,7 +56,7 @@ struct VideoOptions : public Options
 			 "Write output to a circular buffer of the given size (in MB) which is saved on exit")
 			("frames", value<unsigned int>(&v_->frames)->default_value(0),
 			 "Run for the exact number of frames specified. This will override any timeout set.")
-			("libav-video-codec", value<std::string>(&v_->libav_video_codec)->default_value("h264_v4l2m2m"),
+			("libav-video-codec", value<std::string>(&v_->libav_video_codec)->default_value("libx264"),
 			 "Sets the libav video codec to use. "
 			 "To list available codecs, run  the \"ffmpeg -codecs\" command.")
 			("libav-video-codec-opts", value<std::string>(&v_->libav_video_codec_opts),

@@ -104,6 +104,10 @@ static Encoder *libav_codec_select(VideoOptions *options, const StreamInfo &info
 	{
 		if (options->GetPlatform() == Platform::VC4)
 			return factory.CreateEncoder("libav")(options, info);
+	}
+	else
+	{
+		// We are on rpi5
 		// No h264_v4l2m2m libav codec available, use libx264 if nothing else is provided.
 		options->Set().libav_video_codec = "libx264";
 	}
