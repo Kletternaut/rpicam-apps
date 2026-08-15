@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (C) 2026, Kletternaut
 #
-# rpicam-ctrl-cli  runtime controller — ASCII slider interface
+# rpicam-rt-cli  runtime controller — ASCII slider interface
 # Navigate with arrow keys, press R to reset, Q to quit.
 
 import curses
@@ -463,7 +463,7 @@ def main(stdscr):
         stdscr.erase()
 
         try:
-            stdscr.addstr(0, 2, "rpicam-ctrl-cli", curses.A_BOLD)
+            stdscr.addstr(0, 2, "rpicam-rt-cli", curses.A_BOLD)
 
             base_y = 2
             CTRL_W = SLIDER_W + 2  # [bar] width incl. brackets
@@ -599,7 +599,7 @@ def run():
 
 
 # ---------------------------------------------------------------------------
-# State persistence — JSON, compatible with the Qt rpicam-ctrl state format.
+# State persistence — JSON, compatible with the Qt rpicam-rt state format.
 # ---------------------------------------------------------------------------
 
 # Named keys in the state file — order must match SLIDERS list.

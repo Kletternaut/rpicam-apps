@@ -1,9 +1,9 @@
-# meson.build for rpicam-ctrl (optional Qt runtime control panel)
+# meson.build for rpicam-rt (optional Qt runtime control panel)
 
-enable_rpicam_ctrl = get_option('enable_rpicam_ctrl')
-rpicam_ctrl_enabled = false
+enable_rpicam_rt = get_option('enable_rpicam_rt')
+rpicam_rt_enabled = false
 
-if not enable_rpicam_ctrl.disabled()
+if not enable_rpicam_rt.disabled()
     qt_dep = dependency('qt6', modules : ['Core', 'Widgets', 'Network'], required : false)
 
     if qt_dep.found()
@@ -12,14 +12,14 @@ if not enable_rpicam_ctrl.disabled()
         message('Qt6 libraries not found, falling back to Qt5')
         qt_dep = dependency('qt5',
             modules : ['Core', 'Widgets', 'Network'],
-            required : enable_rpicam_ctrl)
+            required : enable_rpicam_rt)
         if qt_dep.found()
             qt = import('qt5')
         endif
     endif
 
     if qt_dep.found()
-        rpicam_ctrl_enabled = true
+        rpicam_rt_enabled = true
         moc_files = qt.preprocess(
             moc_sources : ['main.cpp'],
             qresources : ['resources.qrc'],
@@ -27,7 +27,7 @@ if not enable_rpicam_ctrl.disabled()
             include_directories : include_directories('.'),
         )
 
-        executable('rpicam-ctrl',
+        executable('rpicam-rt',
             sources : ['main.cpp', moc_files],
             dependencies : qt_dep,
             include_directories : include_directories('../..'),
@@ -38,8 +38,8 @@ if not enable_rpicam_ctrl.disabled()
         desktop_conf.set('BINDIR', get_option('prefix') / get_option('bindir'))
 
         desktop_file = configure_file(
-            input : 'rpicam-ctrl.desktop.in',
-            output : 'rpicam-ctrl.desktop',
+            input : 'rpicam-rt.desktop.in',
+            output : 'rpicam-rt.desktop',
             configuration : desktop_conf,
         )
 
@@ -47,7 +47,7 @@ if not enable_rpicam_ctrl.disabled()
             install_dir : get_option('datadir') / 'applications',
         )
 
-        install_data('rpicam-ctrl.svg',
+        install_data('rpicam-rt.svg',
             install_dir : get_option('datadir') / 'icons' / 'hicolor' / 'scalable' / 'apps',
         )
     endif

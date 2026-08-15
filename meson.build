@@ -59,8 +59,8 @@ subdir('post_processing_stages')
 subdir('preview')
 subdir('utils')
 
-if not get_option('enable_rpicam_ctrl').disabled()
-    conf_data.set('RPICAM_CTRL_PRESENT', 1)
+if not get_option('enable_rpicam_rt').disabled()
+    conf_data.set('RPICAM_RT_PRESENT', 1)
 endif
 
 configure_file(output : 'config.h', configuration : conf_data)
@@ -101,6 +101,6 @@ summary({
             'TFLite postprocessing' : enable_tflite,
             'Hailo postprocessing' : enable_hailo,
             'IMX500 postprocessing' : get_option('enable_imx500'),
-            'rpicam-ctrl' : rpicam_ctrl_enabled,
+            'rpicam-rt' : rpicam_rt_enabled,
         },
         bool_yn : true, section : 'Build configuration')

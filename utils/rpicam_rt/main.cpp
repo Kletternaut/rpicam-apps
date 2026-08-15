@@ -2,13 +2,13 @@
 /*
  * Copyright (C) 2026, Kletternaut
  *
- * rpicam-ctrl — Qt runtime control panel for rpicam-vid.
+ * rpicam-rt — Qt runtime control panel for rpicam-vid.
  *
  * Connects to /tmp/rpicam-vid.sock and sends parameter updates via
  * Unix Domain Socket. Requires rpicam-vid built with the ControlSocket patch.
  *
  * Build:
- *   meson configure build -Denable_rpicam_ctrl=enabled
+ *   meson configure build -Denable_rpicam_rt=enabled
  *   ninja -C build
  */
 
@@ -222,7 +222,7 @@ class ControlWindow : public QMainWindow
 public:
 	explicit ControlWindow(QWidget *parent = nullptr) : QMainWindow(parent)
 	{
-		setWindowTitle("rpicam-ctrl");
+		setWindowTitle("rpicam-rt");
 		setMinimumWidth(520);
 
 		sock_ = new QLocalSocket(this);
@@ -595,7 +595,7 @@ private slots:
 	// Per-camera state helpers
 	// ------------------------------------------------------------------
 
-	// State files: /tmp/rpicam-vid{N}.state (JSON) - shared with rpicam-ctrl-cli.
+	// State files: /tmp/rpicam-vid{N}.state (JSON) - shared with rpicam-rt-cli.
 
 	static QString stateFilePath(int camIdx)
 	{
@@ -1277,9 +1277,9 @@ private:
 int main(int argc, char *argv[])
 {
 	QApplication app(argc, argv);
-	app.setApplicationName("rpicam-ctrl");
-	app.setApplicationDisplayName("rpicam-ctrl");
-	app.setWindowIcon(QIcon::fromTheme("rpicam-ctrl", QIcon(":/rpicam-ctrl.svg")));
+	app.setApplicationName("rpicam-rt");
+	app.setApplicationDisplayName("rpicam-rt");
+	app.setWindowIcon(QIcon::fromTheme("rpicam-rt", QIcon(":/rpicam-rt.svg")));
 
 	ControlWindow win;
 	win.show();

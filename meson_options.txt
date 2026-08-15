@@ -54,7 +54,7 @@ option('disable_rpi_features',
         value : false,
         description : 'Disable use Raspberry Pi specific extensions in the build')
 
-option('enable_rpicam_ctrl',
+option('enable_rpicam_rt',
         type : 'feature',
         value : 'disabled',
-        description : 'Build the optional Qt runtime control panel (rpicam-ctrl)')
+        description : 'Build the optional Qt runtime control panel (rpicam-rt)')

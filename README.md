@@ -4,7 +4,7 @@ This is a small suite of libcamera-based applications to drive the cameras on a 
 >[!WARNING]
 >These applications and libraries have been renamed from `libcamera-*` to `rpicam-*`. Symbolic links to allow users to keep using the old application names have now been removed.
 
-Runtime Control (feature/rpicam-ctrl)
+Runtime Control (feature/rpicam-rt)
 --------------------------------------
 
 `rpicam-vid` listens on a Unix domain socket and accepts plain-text commands at runtime — no restart required. The socket path is derived from the `--camera` index:
@@ -42,7 +42,7 @@ echo "awb:daylight"           | nc -U /tmp/rpicam-vid0.sock
 echo "roi:0.25,0.25,0.5,0.5" | nc -U /tmp/rpicam-vid0.sock
 ```
 
-### Qt GUI (`rpicam-ctrl`)
+### Qt GUI (`rpicam-rt`)
 
 A graphical control panel built with Qt Widgets. Connects to the running `rpicam-vid` socket and provides:
 
@@ -57,19 +57,19 @@ A graphical control panel built with Qt Widgets. Connects to the running `rpicam
 Build via Meson:
 
 ```sh
-meson configure build -Denable_rpicam_ctrl=enabled
+meson configure build -Denable_rpicam_rt=enabled
 ninja -C build
 ```
 
 Requires Qt6 or Qt5 Widgets + Network. Connects automatically to the socket on startup and reconnects if `rpicam-vid` is restarted.
 
-### TUI (`rpicam-ctrl-cli`)
+### TUI (`rpicam-rt-cli`)
 
 A terminal-based ASCII slider interface, requires only Python 3 (stdlib `curses`):
 
 ```sh
-./utils/rpicam-ctrl-cli        # camera 0
-./utils/rpicam-ctrl-cli 1      # camera 1
+./utils/rpicam-rt-cli        # camera 0
+./utils/rpicam-rt-cli 1      # camera 1
 ```
 
 Navigate with `↑`/`↓`, adjust values with `←`/`→`, `C` to switch camera, `R` to reset all, `Q` to quit.

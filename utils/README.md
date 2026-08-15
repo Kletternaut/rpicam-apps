@@ -1,4 +1,4 @@
-# rpicam-ctrl
+# rpicam-rt
 
 This directory contains tools that enable **live parameter control** of a running
 `rpicam-vid` instance — no restart required.
@@ -45,7 +45,7 @@ rpicam-vid --camera 0 -o /dev/null &   # /tmp/rpicam-vid0.sock
 rpicam-vid --camera 1 -o /dev/null &   # /tmp/rpicam-vid1.sock
 ```
 
-Both `rpicam-ctrl-cli` and `rpicam-ctrl` can switch between cameras at runtime.
+Both `rpicam-rt-cli` and `rpicam-rt` can switch between cameras at runtime.
 
 ---
 
@@ -102,21 +102,21 @@ caps:maxfps=40,hasaf=0
 | `maxfps` | Maximum frame rate of the active mode (integer) |
 | `hasaf` | `1` if the camera supports autofocus, `0` otherwise |
 
-Both `rpicam-ctrl` and `rpicam-ctrl-cli` parse this line and clamp the
+Both `rpicam-rt` and `rpicam-rt-cli` parse this line and clamp the
 framerate slider maximum accordingly.
 
 ---
 
 ## Tools
 
-### `rpicam-ctrl-cli` — Terminal UI
+### `rpicam-rt-cli` — Terminal UI
 
 Interactive terminal UI built with Python 3 stdlib (`curses`) — no additional
 dependencies required.
 
 ```bash
-./rpicam-ctrl-cli        # camera 0
-./rpicam-ctrl-cli 1      # camera 1
+./rpicam-rt-cli        # camera 0
+./rpicam-rt-cli 1      # camera 1
 ```
 
 **Controls:**
@@ -150,12 +150,12 @@ and adjusts the framerate slider maximum for the active sensor mode.
 `/tmp/rpicam-vid1.sock` does, camera 1 is selected automatically on startup.
 
 Settings are persisted to `/tmp/rpicam-vid{N}.state` (JSON) per camera index
-and shared with `rpicam-ctrl`. Switching cameras restores that camera's
+and shared with `rpicam-rt`. Switching cameras restores that camera's
 last known values.
 
 ---
 
-### `rpicam_ctrl/` — Qt graphical control panel (`rpicam-ctrl`)
+### `rpicam_rt/` — Qt graphical control panel (`rpicam-rt`)
 
 A Qt Widgets application (Qt6 preferred, Qt5 fallback) with sliders for all continuous parameters and
 dropdowns for mode selections. A camera selector switches between camera 0 and
@@ -174,13 +174,13 @@ socket on startup and reconnects if `rpicam-vid` is restarted.
   missing hardware; not production-ready
 - Reset button restores all defaults
 - Keyboard shortcuts: `R` reset, `Q` quit, `C` switch camera
-- Settings persisted to `/tmp/rpicam-vid{N}.state`, shared with `rpicam-ctrl-cli`
+- Settings persisted to `/tmp/rpicam-vid{N}.state`, shared with `rpicam-rt-cli`
 - Reconnects automatically; re-reads state file on each connect
 
 **Build** (requires Qt5 Widgets + Network):
 
 ```bash
-meson configure build -Denable_rpicam_ctrl=enabled
+meson configure build -Denable_rpicam_rt=enabled
 ninja -C build
 ```
 
