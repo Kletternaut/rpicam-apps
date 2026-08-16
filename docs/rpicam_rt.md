@@ -73,6 +73,35 @@ rpicam-apps capabilites: egl:1 qt:1 drm:1 libav:1 rpicam_rt:1
 | Token | Meaning |
 |---|---|
 | `rpicam_rt:1` | Runtime control socket support is compiled in (Meson option `enable_rpicam_rt`) |
+| `roi_selection:1` | Interactive ROI selection is available (requires the Qt preview plugin, see below) |
+
+### Runtime vs. build-time capabilities
+
+The tokens `egl`, `qt`, `drm`, `libav` and `roi_selection` are **not**
+compile-time constants. The preview and encoder backends are plugin libraries
+(`qt-preview.so`, `egl-preview.so`, `drm-preview.so`, `libav-encoder.so`) that
+rpicam-apps loads from the installation directory **when the program starts**.
+Until the build has been installed (`sudo meson install -C build`), the plugins
+do not exist in the install path and every runtime token reports `0`:
+
+```
+rpicam-apps capabilites: egl:0 qt:0 drm:0 libav:0 roi_selection:0 rpicam_rt:1
+```
+
+Only `rpicam_rt:1` is a true compile-time token: the control socket is linked
+into `rpicam-vid` whenever `enable_rpicam_rt` is enabled, so it is reported
+even before installation.
+
+`roi_selection` is not a Meson option at all — the interactive ROI selection is
+always compiled in, but it depends on the Qt preview plugin. Its token
+therefore follows the Qt plugin and reports `1` only when `qt:1` is present.
+
+After installation the plugins are found and the tokens report their real
+availability, e.g.:
+
+```
+rpicam-apps capabilites: egl:1 qt:1 drm:1 libav:1 roi_selection:1 rpicam_rt:1
+```
 
 ## Control socket
 

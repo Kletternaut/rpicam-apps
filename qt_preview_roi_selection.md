@@ -39,6 +39,15 @@ To use the same ROI in a scripted or headless run:
 rpicam-vid -t 10000 --width 1920 --height 1080 --roi 0.25,0.30,0.50,0.40 -o output.h264
 ```
 
+## Capability check
+
+`rpicam-vid --version` reports `roi_selection:1` only when the Qt preview
+plugin is installed and loadable. The preview backends are plugin libraries
+that are loaded from the installation path at runtime, so before
+`sudo meson install -C build` the token reports `0` even though the feature is
+compiled in. See the "Capability detection" section in `docs/rpicam_rt.md` for
+details.
+
 ## Implementation Notes
 
 - Only supported with `--qt-preview`. EGL and DRM preview windows do not support this feature.
