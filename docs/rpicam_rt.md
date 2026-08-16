@@ -55,11 +55,33 @@ Since then the feature is developed under the name **rpicam-rt**:
 meson configure build -Denable_rpicam_rt=enabled
 ninja -C build
 sudo meson install -C build
+sudo ldconfig
 ```
 
 The GUI requires Qt6 or Qt5 (Widgets + Network); the TUI requires only Python 3.
 The runtime control socket itself is compiled into `rpicam-vid` whenever the
 option is enabled.
+
+### The `ldconfig` step is mandatory
+
+`meson install` places `librpicam_app.so.1` in `/usr/local/lib/aarch64-linux-gnu/`,
+but the dynamic linker keeps using its cached search results until the cache is
+refreshed. On systems that have the distro-packaged rpicam-apps installed
+(Debian/Raspberry Pi OS: `rpicam-apps-core`, `librpicam-app1`), an outdated
+cache makes `rpicam-vid` load the **old packaged library** from
+`/lib/aarch64-linux-gnu/librpicam_app.so.1` instead of the freshly installed one.
+The version mismatch typically crashes the program with a segfault
+(`Speicherzugriffsfehler` / exit code 139) as soon as it starts.
+
+Running `sudo ldconfig` after `meson install` refreshes the cache so the new
+library is found first. If the segfault persists, verify which library is
+loaded:
+
+```bash
+ldd $(which rpicam-vid) | grep rpicam
+```
+
+It must point to `/usr/local/lib/...`, not to `/lib/...` or `/usr/lib/...`.
 
 ## Capability detection
 
