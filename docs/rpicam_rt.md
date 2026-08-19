@@ -62,6 +62,9 @@ The GUI requires Qt6 or Qt5 (Widgets + Network); the TUI requires only Python 3.
 The runtime control socket itself is compiled into `rpicam-vid` whenever the
 option is enabled.
 
+For a complete step-by-step installation guide (distro package removal, full
+dependency list, verification), see [INSTALL_RT_ROI.md](INSTALL_RT_ROI.md).
+
 ### The `ldconfig` step is mandatory
 
 `meson install` places `librpicam_app.so.1` in `/usr/local/lib/aarch64-linux-gnu/`,

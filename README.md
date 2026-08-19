@@ -7,6 +7,8 @@ This is a small suite of libcamera-based applications to drive the cameras on a 
 Runtime Control (feature/rpicam-rt)
 --------------------------------------
 
+> **Installation:** This feature lives on the [`feature/rt-roi`](https://github.com/Kletternaut/rpicam-apps/tree/feature/rt-roi) branch of the fork. Step-by-step build and install instructions: [docs/INSTALL_RT_ROI.md](docs/INSTALL_RT_ROI.md).
+
 `rpicam-vid` listens on a Unix domain socket and accepts plain-text commands at runtime — no restart required. The socket path is derived from the `--camera` index:
 
 | `--camera` | Socket |
