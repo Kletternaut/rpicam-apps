@@ -45,7 +45,7 @@ rpicam-vid -t 10000 --width 1920 --height 1080 --roi 0.25,0.30,0.50,0.40 -o outp
 plugin is installed and loadable. The preview backends are plugin libraries
 that are loaded from the installation path at runtime, so before
 `sudo meson install -C build` the token reports `0` even though the feature is
-compiled in. See the "Capability detection" section in `docs/rpicam_rt.md` for
+compiled in. See the "Capability detection" section in `rpicam_rt.md` for
 details.
 
 ## Implementation Notes

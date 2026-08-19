@@ -211,6 +211,9 @@ Clients parse this line and clamp the framerate slider maximum accordingly.
 
 ## ROI / digital zoom
 
+Interactive ROI selection in the Qt preview window is documented separately in
+[qt_preview_roi_selection.md](qt_preview_roi_selection.md).
+
 The `roi:` command applies a hardware crop on the ISP (`ScalerCrop` /
 `ScalerCrops`), not a software crop — full sensor resolution is retained
 within the selected area. The implementation uses a runtime
