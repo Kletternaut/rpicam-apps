@@ -85,6 +85,7 @@ void RuntimeDataSocket::AcceptConnections()
 void RuntimeDataSocket::Process()
 {
     if (client_fd_ < 0) return;
+    bool peer_closed = false;
     char buf[4096];
     for (;;) {
         const ssize_t n = ::recv(client_fd_, buf, sizeof(buf), 0);
@@ -93,7 +94,7 @@ void RuntimeDataSocket::Process()
             if (recv_buf_.size() > MAX_RECEIVE_BUFFER) { CloseClient(); return; }
             continue;
         }
-        if (n == 0) { CloseClient(); return; }
+        if (n == 0) { peer_closed = true; break; }
         if (errno == EINTR) continue;
         if (errno == EAGAIN || errno == EWOULDBLOCK) break;
         CloseClient(); return;
@@ -106,7 +107,15 @@ void RuntimeDataSocket::Process()
         if (!line.empty() && line.back() == '\r') line.pop_back();
         if (line.size() <= MAX_COMMAND_LENGTH) ProcessLine(line);
     }
-    if (recv_buf_.size() > MAX_COMMAND_LENGTH) CloseClient();
+    if (recv_buf_.size() > MAX_COMMAND_LENGTH) {
+        CloseClient();
+        return;
+    }
+
+    // A client may use one-shot writes (for example: echo ... | nc -U ...).
+    // Complete commands are processed above before closing the orderly-closed fd.
+    if (peer_closed)
+        CloseClient();
 }
 
 void RuntimeDataSocket::ProcessLine(const std::string &line)
