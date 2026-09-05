@@ -34,6 +34,7 @@
 #include "core/completed_request.hpp"
 #include "core/dma_heaps.hpp"
 #include "core/post_processor.hpp"
+#include "core/runtime_data_store.hpp"
 #include "core/stream_info.hpp"
 
 struct Options;
@@ -177,6 +178,14 @@ public:
 	{
 		return camera_->properties();
 	}
+	RuntimeDataStore &GetRuntimeDataStore()
+	{
+		return runtime_data_store_;
+	}
+	RuntimeDataStore const &GetRuntimeDataStore() const
+	{
+		return runtime_data_store_;
+	}
 
 	static unsigned int verbosity;
 	static unsigned int GetVerbosity()
@@ -294,6 +303,8 @@ private:
 	// For setting camera controls.
 	std::mutex control_mutex_;
 	ControlList controls_;
+	// Runtime values shared with post-processing stages.
+	RuntimeDataStore runtime_data_store_;
 	// Other:
 	uint64_t last_timestamp_;
 	uint64_t sequence_ = 0;

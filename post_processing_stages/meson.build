@@ -19,6 +19,7 @@ core_postproc_src = files([
     'motion_detect_stage.cpp',
     'negate_stage.cpp',
     'acoustic_focus_stage.cpp',
+    'watermark_stage.cpp',
 ])
 
 # Core assets
