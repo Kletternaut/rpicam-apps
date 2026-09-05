@@ -10,6 +10,8 @@ rpicam_app_src += files([
     'rpicam_app.cpp',
     'options.cpp',
     'post_processor.cpp',
+    'runtime_data_store.cpp',
+    'runtime_data_socket.cpp',
 ])
 
 core_headers = files([
@@ -24,6 +26,8 @@ core_headers = files([
     'metadata.hpp',
     'options.hpp',
     'post_processor.hpp',
+    'runtime_data_store.hpp',
+    'runtime_data_socket.hpp',
     'still_options.hpp',
     'stream_info.hpp',
     'version.hpp',
