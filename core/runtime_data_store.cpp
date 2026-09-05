@@ -7,7 +7,14 @@ void RuntimeDataStore::Set(const std::string &key, Value value)
         return;
 
     std::lock_guard<std::mutex> lock(mutex_);
-    values_[key] = std::move(value);
+    auto it = values_.find(key);
+    if (it != values_.end() && it->second == value)
+        return;
+
+    if (it != values_.end())
+        it->second = std::move(value);
+    else
+        values_.emplace(key, std::move(value));
     ++generation_;
 }
 
