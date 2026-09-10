@@ -70,8 +70,20 @@ static void event_loop(RPiCamEncoder &app)
 	app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
 	app.SetMetadataReadyCallback(std::bind(&Output::MetadataReady, output.get(), _1));
 
+	// Runtime control socket: created before the camera and post-processing startup,
+	// which can take several hundred ms (stage setup, Hailo device init, Qt preview),
+	// so clients can connect as soon as the process has started.
+	// Path derived from camera index (e.g. --camera 1 → /tmp/rpicam-vid1.sock).
+	std::string ctrl_sock_path = "/tmp/rpicam-vid" + std::to_string(options->Get().camera) + ".sock";
+	ControlSocket ctrl_socket(ctrl_sock_path);
+	if (!ctrl_socket.IsValid())
+		LOG_ERROR("ControlSocket: failed to initialise – runtime control unavailable");
+	// Needs a configured camera, so it is assigned after ConfigureVideo() below.
+	bool ctrl_is_pisp = false;
+
 	app.OpenCamera();
 	app.ConfigureVideo(get_colourspace_flags(options->Get().codec));
+	ctrl_is_pisp = app.SupportsScalerCrops();
 
 	// Query the maximum fps for the negotiated sensor mode from FrameDurationLimits.
 	// Must be read after ConfigureVideo() / camera_->configure() so the pipeline
@@ -97,13 +109,6 @@ static void event_loop(RPiCamEncoder &app)
 	app.StartEncoder();
 	app.StartCamera();
 	auto start_time = std::chrono::high_resolution_clock::now();
-
-	// Runtime control socket: path derived from camera index (e.g. --camera 1 → /tmp/rpicam-vid1.sock).
-	std::string ctrl_sock_path = "/tmp/rpicam-vid" + std::to_string(options->Get().camera) + ".sock";
-	ControlSocket ctrl_socket(ctrl_sock_path);
-	if (!ctrl_socket.IsValid())
-		LOG_ERROR("ControlSocket: failed to initialise – runtime control unavailable");
-	const bool ctrl_is_pisp = app.SupportsScalerCrops();
 
 	// ROI selection via Qt preview: user drags a rectangle on the preview window (--qt-preview only).
 	// The callback fires on the Qt thread and applies the crop directly via SetControls.
