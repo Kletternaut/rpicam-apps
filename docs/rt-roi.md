@@ -1,23 +1,28 @@
-# rpicam-rt — Runtime Control Interface for rpicam-apps
+# rt-roi — Runtime Control and Interactive ROI Selection for rpicam-apps
 
 ## Overview
 
-rpicam-rt is a runtime control interface for the rpicam-apps suite. A running
-`rpicam-vid` instance listens on a Unix domain socket and accepts plain-text
-commands that adjust camera parameters live — without stopping and restarting
-the process. Two companion tools are provided: `rpicam-rt` (Qt GUI) and
-`rpicam-rt-cli` (terminal UI).
+`rt-roi` bundles two features on top of the rpicam-apps suite:
+
+1. **Runtime control (`rt`)** — a running `rpicam-vid` instance listens on a
+   Unix domain socket and accepts plain-text commands that adjust camera
+   parameters live, without stopping and restarting the process. Two companion
+   tools are provided: `rpicam-rt` (Qt GUI) and `rpicam-rt-cli` (terminal UI).
+2. **Interactive ROI selection (`roi`)** — a rectangle drawn with the mouse in
+   the Qt preview window is applied as a hardware crop on the ISP, giving a
+   true optical zoom into the selected region.
 
 Several camera controls — brightness, contrast, saturation, exposure
 compensation, AWB mode, AWB gains, ROI/digital zoom, HDR mode, shutter and
-framerate — are normally only applied at startup. rpicam-rt removes that
+framerate — are normally only applied at startup. Runtime control removes that
 limitation, which is particularly valuable for iterative tuning (e.g. manual
 focus, exposure, or framing) where the result must be visible in the live
-stream while adjusting.
+stream while adjusting. Interactive ROI selection complements this: it lets you
+frame the region you are tuning without editing command-line parameters.
 
 ## History and naming
 
-The feature was originally proposed as
+The runtime control feature was originally proposed as
 [PR #917](https://github.com/raspberrypi/rpicam-apps/pull/917)
 ("rpicam-vid: add Unix Domain Socket runtime control and companion tools")
 against the upstream `raspberrypi/rpicam-apps` repository. The PR received no
@@ -41,6 +46,10 @@ Since then the feature is developed under the name **rpicam-rt**:
   (`/tmp/rpicam-vid{N}.sock`, `/tmp/rpicam-vid{N}.state`), because they are
   properties of the `rpicam-vid` process.
 
+Interactive ROI selection was added on top of the runtime control feature. The
+combined branch is **`feature/rt-roi`** (rpicam-rt + ROI); both features ship
+together and are documented here in one place.
+
 ## Components
 
 | Component | Location | Description |
@@ -48,6 +57,7 @@ Since then the feature is developed under the name **rpicam-rt**:
 | `ControlSocket` | `apps/control_socket.hpp` | Self-contained header-only server; no dependency on rpicam-vid-specific code |
 | `rpicam-rt` | `utils/rpicam_rt/` | Qt6/Qt5 graphical control panel |
 | `rpicam-rt-cli` | `utils/rpicam-rt-cli` | Python 3 terminal UI (stdlib `curses` only, no dependencies) |
+| ROI selection | `preview/qt_preview.cpp` | Mouse-driven ROI selection in the Qt preview window |
 
 ## Build and install
 
@@ -60,7 +70,8 @@ sudo ldconfig
 
 The GUI requires Qt6 or Qt5 (Widgets + Network); the TUI requires only Python 3.
 The runtime control socket itself is compiled into `rpicam-vid` whenever the
-option is enabled.
+option is enabled. Interactive ROI selection is always compiled in, but it
+needs the Qt preview plugin (see "Capability detection" below).
 
 For a complete step-by-step installation guide (distro package removal, full
 dependency list, verification), see [INSTALL_RT_ROI.md](INSTALL_RT_ROI.md).
@@ -92,7 +103,7 @@ rpicam-apps reports build capabilities through `--version` so that external
 control applications can detect feature availability at runtime:
 
 ```
-rpicam-apps capabilites: egl:1 qt:1 drm:1 libav:1 rpicam_rt:1
+rpicam-apps capabilites: egl:1 qt:1 drm:1 libav:1 roi_selection:1 rpicam_rt:1
 ```
 
 | Token | Meaning |
@@ -139,6 +150,12 @@ The socket path is derived automatically from the `--camera` index, so two
 |---|---|
 | `0` (default) | `/tmp/rpicam-vid0.sock` |
 | `1` | `/tmp/rpicam-vid1.sock` |
+
+The listening socket is created at the very start of the `rpicam-vid` event
+loop, before the camera is opened and before post-processing stages are
+instantiated. This matters because stage setup and Hailo device initialisation
+can delay startup by several hundred milliseconds; clients that connect shortly
+after process start would otherwise find no socket.
 
 ### Wire format
 
@@ -211,15 +228,81 @@ Clients parse this line and clamp the framerate slider maximum accordingly.
 
 ## ROI / digital zoom
 
-Interactive ROI selection in the Qt preview window is documented separately in
-[qt_preview_roi_selection.md](qt_preview_roi_selection.md).
+ROI selection is available in two flavours: **interactive** via the mouse in the
+Qt preview window, and **scripted** via the `roi:` socket command or the
+`--roi` command-line parameter. Both apply the same hardware crop.
 
-The `roi:` command applies a hardware crop on the ISP (`ScalerCrop` /
-`ScalerCrops`), not a software crop — full sensor resolution is retained
-within the selected area. The implementation uses a runtime
-`SupportsScalerCrops()` check on `RPiCamApp`, which is more reliable than
-platform detection: sensors like the imx477 on Pi 5 use the legacy
-`ScalerCrop` path even though the platform is PISP.
+### Interactive selection in the Qt preview
+
+With `--qt-preview`, drag a rectangle over the area of interest:
+
+| Action | Effect |
+|---|---|
+| Left-click + drag | Draw a selection rectangle |
+| Release mouse button | Apply ROI — camera zooms into the selected area |
+| Right-click | Reset to full frame |
+
+- The selection rectangle is aspect-ratio locked to the preview window
+  dimensions to avoid image distortion.
+- While a ROI is active, accidental re-selection by left-click is blocked.
+  Right-click first to reset.
+- The rectangle is rendered as a 1 px hairline in `QColor(0, 180, 255, 200)`.
+
+### Terminal output
+
+When a ROI is applied, the equivalent `--roi` command-line parameter is printed
+to the terminal:
+
+```
+ROI selected: --roi 0.25,0.30,0.50,0.40
+```
+
+This allows you to copy the exact values for use in a subsequent `rpicam-vid`
+invocation without having to calculate them manually.
+
+### Example
+
+```bash
+rpicam-vid --qt-preview -t 0 --width 1920 --height 1080
+```
+
+Draw a rectangle over the area of interest in the preview window. The camera
+will immediately zoom into that region. The terminal prints the corresponding
+`--roi` value.
+
+To use the same ROI in a scripted or headless run:
+
+```bash
+rpicam-vid -t 10000 --width 1920 --height 1080 --roi 0.25,0.30,0.50,0.40 -o output.h264
+```
+
+The same crop can be applied at runtime over the control socket:
+
+```bash
+echo "roi:0.25,0.30,0.50,0.40" | nc -U /tmp/rpicam-vid0.sock
+echo "roi:0,0,1,1"             | nc -U /tmp/rpicam-vid0.sock   # reset to full frame
+```
+
+### Semantics
+
+The applied crop is a **hardware crop on the ISP** (`ScalerCrop` /
+`ScalerCrops`), not a software crop — full sensor resolution is retained within
+the selected area, so there is no loss of detail in the zoomed region.
+
+The implementation uses a runtime `SupportsScalerCrops()` check on `RPiCamApp`,
+which is more reliable than platform detection: sensors like the imx477 on
+Pi 5 use the legacy `ScalerCrop` path even though the platform is PISP.
+
+| Platform | Control |
+|---|---|
+| Pi 4 (VC4) | `ScalerCrop` |
+| Pi 5 (PISP) | `ScalerCrops`, subject to the runtime capability check |
+
+### Implementation notes
+
+- Only supported with `--qt-preview`. EGL and DRM preview windows do not support interactive selection.
+- The selection callback runs in the Qt thread; `SetControls()` is called from there and is thread-safe.
+- `roi:` values are relative to the sensor area: `x`, `y`, `w`, `h` in the range 0.0–1.0, with full frame = `0,0,1,1`.
 
 ## State persistence
 

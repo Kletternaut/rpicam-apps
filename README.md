@@ -4,7 +4,7 @@ This is a small suite of libcamera-based applications to drive the cameras on a 
 >[!WARNING]
 >These applications and libraries have been renamed from `libcamera-*` to `rpicam-*`. Symbolic links to allow users to keep using the old application names have now been removed.
 
-Runtime Control (feature/rpicam-rt)
+Runtime Control and ROI (feature/rt-roi)
 --------------------------------------
 
 This fork adds a runtime control feature: a running `rpicam-vid` listens on a
@@ -13,8 +13,7 @@ companion tools `rpicam-rt` (Qt GUI) and `rpicam-rt-cli` (terminal UI) allow
 live adjustment of camera parameters. The Qt preview additionally supports
 interactive ROI (region of interest) selection.
 
-- Feature reference: [docs/rpicam_rt.md](docs/rpicam_rt.md)
-- Interactive ROI selection: [docs/qt_preview_roi_selection.md](docs/qt_preview_roi_selection.md)
+- Feature reference: [docs/rt-roi.md](docs/rt-roi.md)
 - Installation guide: [docs/INSTALL_RT_ROI.md](docs/INSTALL_RT_ROI.md)
 
 Build
