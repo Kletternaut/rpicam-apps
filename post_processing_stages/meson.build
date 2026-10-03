@@ -29,6 +29,31 @@ postproc_assets += files([
     assets_dir / 'acoustic_focus.json',
 ])
 
+# GStreamer based preview stage. Sends lores frames over RTP/UDP as a preview
+# path that is independent of the main encode.
+enable_gstreamer = false
+gst_dep = dependency('gstreamer-1.0', required : get_option('enable_gstreamer'))
+gst_app_dep = dependency('gstreamer-app-1.0', required : get_option('enable_gstreamer'))
+gst_video_dep = dependency('gstreamer-video-1.0', required : get_option('enable_gstreamer'))
+if gst_dep.found() and gst_app_dep.found() and gst_video_dep.found()
+    gstreamer_postproc_src = files([
+        'gstreamer_preview_stage.cpp',
+    ])
+
+    gstreamer_postproc_lib = shared_module('gstreamer-preview-postproc', gstreamer_postproc_src,
+                                           include_directories : '../',
+                                           dependencies : [libcamera_dep, gst_dep, gst_app_dep, gst_video_dep],
+                                           cpp_args : cpp_arguments,
+                                           install : true,
+                                           install_dir : posproc_libdir,
+                                           name_prefix : '',
+                                          )
+    postproc_assets += files([
+        assets_dir / 'gstreamer_preview.json',
+    ])
+    enable_gstreamer = true
+endif
+
 core_postproc_lib = shared_module('core-postproc', core_postproc_src,
                                   include_directories : '../',
                                   dependencies : libcamera_dep,
