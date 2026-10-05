@@ -84,6 +84,10 @@ static void event_loop(RPiCamEncoder &app)
 	app.OpenCamera();
 	app.ConfigureVideo(get_colourspace_flags(options->Get().codec));
 	ctrl_is_pisp = app.SupportsScalerCrops();
+	// Number of scaled output streams that each need a ScalerCrop on PiSP: the
+	// main stream plus an optional lores preview stream. Mirrors the startup
+	// crop list in rpicam_app.cpp so a runtime ROI applies to the preview too.
+	const size_t ctrl_crop_count = 1 + (app.LoresStream() ? 1 : 0);
 
 	// Query the maximum fps for the negotiated sensor mode from FrameDurationLimits.
 	// Must be read after ConfigureVideo() / camera_->configure() so the pipeline
@@ -113,7 +117,7 @@ static void event_loop(RPiCamEncoder &app)
 	// ROI selection via Qt preview: user drags a rectangle on the preview window (--qt-preview only).
 	// The callback fires on the Qt thread and applies the crop directly via SetControls.
 	app.SetPreviewRoiCallback(
-		[&app, ctrl_is_pisp](float x, float y, float w, float h)
+		[&app, ctrl_is_pisp, ctrl_crop_count](float x, float y, float w, float h)
 		{
 			libcamera::Rectangle sensor = app.GetSensorArea();
 			x = std::clamp(x, 0.0f, 1.0f);
@@ -127,7 +131,10 @@ static void event_loop(RPiCamEncoder &app)
 			libcamera::ControlList cl(libcamera::controls::controls);
 			if (ctrl_is_pisp)
 			{
-				const std::vector<libcamera::Rectangle> crops = { crop };
+				// Same fix as in control_socket.hpp: PiSP needs one crop per
+				// scaled stream (main + lores), otherwise the preview keeps
+				// its old crop and the zoom is not visible live.
+				std::vector<libcamera::Rectangle> crops(ctrl_crop_count, crop);
 				cl.set(libcamera::controls::rpi::ScalerCrops,
 					   libcamera::Span<const libcamera::Rectangle>(crops.data(), crops.size()));
 			}
@@ -182,7 +189,7 @@ static void event_loop(RPiCamEncoder &app)
 				ctrl_socket.SendToClient(caps);
 				ctrl_socket.ClearNewClient();
 			}
-			libcamera::ControlList cl = ctrl_socket.ReadControls(app.GetSensorArea(), ctrl_is_pisp);
+			libcamera::ControlList cl = ctrl_socket.ReadControls(app.GetSensorArea(), ctrl_is_pisp, ctrl_crop_count);
 			if (!cl.empty())
 				app.SetControls(cl);
 		}

@@ -164,7 +164,11 @@ public:
 	// built from all complete commands. Returns an empty ControlList when
 	// nothing has arrived. sensor_area is required for ROI → pixel conversion.
 	// is_pisp selects ScalerCrops (PISP/Pi5) vs. ScalerCrop (VC4/Pi4).
-	libcamera::ControlList ReadControls(const libcamera::Rectangle &sensor_area, bool is_pisp = false)
+	// crop_count is the number of scaled output streams that each need a crop
+	// on PiSP (main + optional lores preview); the runtime ROI mirrors the
+	// startup crop list in rpicam_app.cpp by duplicating the crop.
+	libcamera::ControlList ReadControls(const libcamera::Rectangle &sensor_area, bool is_pisp = false,
+										size_t crop_count = 1)
 	{
 		libcamera::ControlList cl(libcamera::controls::controls);
 
@@ -201,7 +205,7 @@ public:
 				line.pop_back();
 
 			if (!line.empty())
-				parseCommand(line, sensor_area, is_pisp, cl);
+				parseCommand(line, sensor_area, is_pisp, crop_count, cl);
 		}
 
 		return cl;
@@ -228,7 +232,7 @@ private:
 	std::string recv_buf_;
 
 	static void parseCommand(const std::string &line, const libcamera::Rectangle &sensor_area, bool is_pisp,
-							 libcamera::ControlList &cl)
+							 size_t crop_count, libcamera::ControlList &cl)
 	{
 		const auto colon = line.find(':');
 		if (colon == std::string::npos)
@@ -386,7 +390,14 @@ private:
 					// ScalerCrop  → VC4 (Pi 1–4); ScalerCrops → PISP (Pi 5)
 					if (is_pisp)
 					{
-						const std::vector<libcamera::Rectangle> crops = { crop };
+						// PiSP (Pi 5) applies one ScalerCrop per scaled output
+						// stream (main + optional lores preview). The runtime
+						// ROI must mirror the startup behaviour in
+						// rpicam_app.cpp (which pushes one crop per stream),
+						// otherwise only the main stream is cropped and the
+						// lores preview keeps its old crop — the digital zoom
+						// would be invisible in the live preview.
+						std::vector<libcamera::Rectangle> crops(crop_count, crop);
 						cl.set(libcamera::controls::rpi::ScalerCrops,
 							   libcamera::Span<const libcamera::Rectangle>(crops.data(), crops.size()));
 					}
