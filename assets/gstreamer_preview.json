@@ -1,0 +1,20 @@
+{
+    "rpicam-apps": {
+        "lores": {
+            "width": 640,
+            "height": 480
+        }
+    },
+    "gstreamer_preview": {
+        "host": "192.168.0.30",
+        "port": 8554,
+        "fps": 30,
+        "bitrate_kbps": 1500,
+        "gop": 15,
+        "encoder": "x264enc",
+        "preset": "ultrafast",
+        "queue_depth": 2,
+        "mtu": 1400,
+        "control_socket": "/run/user/1000"
+    }
+}

@@ -102,5 +102,6 @@ summary({
             'Hailo postprocessing' : enable_hailo,
             'IMX500 postprocessing' : get_option('enable_imx500'),
             'rpicam-rt' : rpicam_rt_enabled,
+            'GStreamer preview postprocessing' : enable_gstreamer,
         },
         bool_yn : true, section : 'Build configuration')

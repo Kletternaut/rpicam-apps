@@ -28,6 +28,11 @@ option('enable_opencv',
         value : 'disabled',
         description : 'Enable OpenCV postprocessing support')
 
+option('enable_gstreamer',
+        type : 'feature',
+        value : 'auto',
+        description : 'Enable the GStreamer preview postprocessing stage')
+
 option('enable_tflite',
         type : 'feature',
         value : 'disabled',
