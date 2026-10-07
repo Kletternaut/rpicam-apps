@@ -63,6 +63,10 @@ if not get_option('enable_rpicam_rt').disabled()
     conf_data.set('RPICAM_RT_PRESENT', 1)
 endif
 
+if enable_gstreamer
+    conf_data.set('GST_PREVIEW_PRESENT', 1)
+endif
+
 configure_file(output : 'config.h', configuration : conf_data)
 
 # Generate a version string.

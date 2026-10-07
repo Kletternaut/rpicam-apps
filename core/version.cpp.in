@@ -33,6 +33,9 @@ const char *RPiCamAppsCapabilities(const std::string &preview_libs, const std::s
 		" drm:" + std::to_string(p.HasPreview("drm")) +
 		" libav:" + std::to_string(e.HasEncoder("libav")) +
 		" roi_selection:" + std::to_string(p.HasPreview("qt"))
+#ifdef GST_PREVIEW_PRESENT
+		+ " gst_preview:1"
+#endif
 #ifdef RPICAM_RT_PRESENT
 		+ " rpicam_rt:1"
 #endif
