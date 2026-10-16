@@ -333,7 +333,7 @@ bool GstreamerPreviewStage::Process(CompletedRequestPtr &completed_request)
 	// DMA_BUF_SYNC_START | DMA_BUF_SYNC_READ has already been performed when
 	// the request completed; BufferReadSync just hands out the mapped planes.
 	BufferReadSync sync(app_, it->second);
-	std::vector<libcamera::Span<uint8_t>> const &planes = sync.Get();
+	std::vector<std::span<uint8_t>> const &planes = sync.Get();
 
 	// The camera buffers are allocated as a SINGLE DMA-heap plane (see
 	// rpicam_app.cpp: one plane covering config.frameSize, one mmap). The
