@@ -136,7 +136,7 @@ static void event_loop(RPiCamEncoder &app)
 				// its old crop and the zoom is not visible live.
 				std::vector<libcamera::Rectangle> crops(ctrl_crop_count, crop);
 				cl.set(libcamera::controls::rpi::ScalerCrops,
-					   libcamera::Span<const libcamera::Rectangle>(crops.data(), crops.size()));
+					   std::span<const libcamera::Rectangle>(crops.data(), crops.size()));
 			}
 			else
 				cl.set(libcamera::controls::ScalerCrop, crop);

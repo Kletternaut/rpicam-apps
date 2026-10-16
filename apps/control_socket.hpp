@@ -50,6 +50,7 @@
 #include <stdexcept>
 #include <string>
 
+#include <span>
 #include <libcamera/control_ids.h>
 #include <libcamera/controls.h>
 #include <libcamera/geometry.h>
@@ -322,13 +323,13 @@ private:
 				{
 					// Restore AE-managed framerate with a wide open range
 					cl.set(libcamera::controls::FrameDurationLimits,
-						   libcamera::Span<const int64_t, 2>({ 100LL, 1000000LL }));
+						   std::span<const int64_t, 2>({ 100LL, 1000000LL }));
 					LOG(1, "ControlSocket: FrameDurationLimits=auto");
 				}
 				else if (fps > 0.0f)
 				{
 					const int64_t dur = static_cast<int64_t>(1e6f / fps);
-					cl.set(libcamera::controls::FrameDurationLimits, libcamera::Span<const int64_t, 2>({ dur, dur }));
+					cl.set(libcamera::controls::FrameDurationLimits, std::span<const int64_t, 2>({ dur, dur }));
 					LOG(1, "ControlSocket: FrameDurationLimits=" << dur << " us (" << fps << " fps)");
 				}
 				else
@@ -366,7 +367,7 @@ private:
 				if (parseFloatList(val, gains) && gains.size() == 2 && gains[0] > 0.0f && gains[1] > 0.0f)
 				{
 					cl.set(libcamera::controls::AwbEnable, false);
-					cl.set(libcamera::controls::ColourGains, libcamera::Span<const float, 2>({ gains[0], gains[1] }));
+					cl.set(libcamera::controls::ColourGains, std::span<const float, 2>({ gains[0], gains[1] }));
 					LOG(1, "ControlSocket: ColourGains=" << gains[0] << "," << gains[1]);
 				}
 				else
@@ -399,7 +400,7 @@ private:
 						// would be invisible in the live preview.
 						std::vector<libcamera::Rectangle> crops(crop_count, crop);
 						cl.set(libcamera::controls::rpi::ScalerCrops,
-							   libcamera::Span<const libcamera::Rectangle>(crops.data(), crops.size()));
+							   std::span<const libcamera::Rectangle>(crops.data(), crops.size()));
 					}
 					else
 					{
