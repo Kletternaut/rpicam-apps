@@ -42,6 +42,7 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <locale>
@@ -553,14 +554,18 @@ private:
 			else if (key == "lens")
 			{
 				const float v = parseFloat(val);
-				if (v >= 0.0f)
+				// Allow negative dioptres: calibration maps can span
+				// negative values (e.g. Sigma 70-300 telezoom: 0 dpt =
+				// its 70 mm reference position, negative = tele side).
+				// Only reject non-finite garbage (inf/nan).
+				if (std::isfinite(v))
 				{
 					cl.set(libcamera::controls::AfMode, libcamera::controls::AfModeManual);
 					cl.set(libcamera::controls::LensPosition, v);
 					LOG(1, "ControlSocket: LensPosition=" << v);
 				}
 				else
-					LOG_ERROR("ControlSocket: lens position must be >= 0");
+					LOG_ERROR("ControlSocket: lens position must be a finite number");
 			}
 			else
 			{
