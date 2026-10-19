@@ -18,6 +18,8 @@
 #include "core/rpicam_app.hpp"
 #include "core/still_options.hpp"
 
+#include "control_socket.hpp"
+
 #include "output/output.hpp"
 
 #include "image/image.hpp"
@@ -195,6 +197,16 @@ static void event_loop(RPiCamStillApp &app)
 	if (options->Get().raw)
 		still_flags |= RPiCamApp::FLAG_STILL_RAW;
 
+	// Runtime control socket: created before the camera startup so clients can
+	// connect as soon as the process has started (mirrors rpicam_vid.cpp).
+	// Path derived from camera index (e.g. --camera 1 → /tmp/rpicam-still1.sock).
+	std::string ctrl_sock_path = "/tmp/rpicam-still" + std::to_string(options->Get().camera) + ".sock";
+	ControlSocket ctrl_socket(ctrl_sock_path);
+	if (!ctrl_socket.IsValid())
+		LOG_ERROR("ControlSocket: failed to initialise – runtime control unavailable");
+	// Needs a configured camera, so it is assigned after the configure step below.
+	bool ctrl_is_pisp = false;
+
 	app.OpenCamera();
 
 	// Monitoring for keypresses and signals.
@@ -219,6 +231,8 @@ static void event_loop(RPiCamStillApp &app)
 		app.ConfigureZsl(still_flags);
 	else
 		app.ConfigureViewfinder();
+	ctrl_is_pisp = app.SupportsScalerCrops();
+	const size_t ctrl_crop_count = 1 + (app.LoresStream() ? 1 : 0);
 	app.StartCamera();
 	auto start_time = std::chrono::high_resolution_clock::now();
 	auto timelapse_time = start_time;
@@ -263,6 +277,24 @@ static void event_loop(RPiCamStillApp &app)
 		if (app.ViewfinderStream() && !want_capture)
 		{
 			LOG(2, "Viewfinder frame " << count);
+
+			// Runtime control socket: only polled while framing (not during
+			// capture), so live controls don't interfere with the capture path.
+			ctrl_socket.AcceptConnections();
+			{
+				libcamera::ControlList cl = ctrl_socket.ReadControls(app.GetSensorArea(), ctrl_is_pisp, ctrl_crop_count);
+				// When --autofocus-on-capture is active, keep the socket away
+				// from AF controls to avoid fighting the app's own AF state machine.
+				if (options->Get().af_on_capture)
+				{
+					cl.erase(libcamera::controls::AfMode);
+					cl.erase(libcamera::controls::AfTrigger);
+					cl.erase(libcamera::controls::LensPosition);
+				}
+				if (!cl.empty())
+					app.SetControls(cl);
+			}
+
 			timelapse_frames++;
 
 			bool timed_out = options->Get().timeout && (now - start_time) > options->Get().timeout.value;
