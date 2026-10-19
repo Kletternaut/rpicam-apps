@@ -287,9 +287,17 @@ static void event_loop(RPiCamStillApp &app)
 				// from AF controls to avoid fighting the app's own AF state machine.
 				if (options->Get().af_on_capture)
 				{
-					cl.erase(libcamera::controls::AfMode);
-					cl.erase(libcamera::controls::AfTrigger);
-					cl.erase(libcamera::controls::LensPosition);
+					// ControlList has no erase(); rebuild without the AF controls.
+					libcamera::ControlList filtered(libcamera::controls::controls);
+					for (const auto &[id, value] : cl)
+					{
+						if (id == libcamera::controls::AfMode.id() ||
+							id == libcamera::controls::AfTrigger.id() ||
+							id == libcamera::controls::LensPosition.id())
+							continue;
+						filtered.set(id, value);
+					}
+					cl = filtered;
 				}
 				if (!cl.empty())
 					app.SetControls(cl);
