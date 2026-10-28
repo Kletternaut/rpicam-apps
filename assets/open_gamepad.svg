@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: BSD-2-Clause -->
+<!-- Original vector drawing of a game controller. No third-party SVG paths,
+     photographs, fonts or logo artwork are embedded or reused.
+     Oblique front/upper view: shoulders, triggers and front controls are
+     visible together. Do not vertically flatten this drawing again.
+     The stage supplies moving stick caps, highlights and connection status. -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="2000" height="781" viewBox="0 144 2000 781"
+     role="img" aria-labelledby="title description">
+  <title id="title">Open Gamepad, oblique view</title>
+  <desc id="description">Original editable drawing of a white game controller
+    seen obliquely from the front and above, with visible triggers
+    and shoulders. Transparent exterior. Stick wells are intentionally empty;
+    the live stage supplies the movable caps. Shortened rear controls and battery
+    reduce the silhouette height. The cropped viewport retains logical control coordinates.</desc>
+  <defs>
+    <linearGradient id="shell-gradient" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.32" stop-color="#eef1ef"/>
+      <stop offset="0.7" stop-color="#d8ddde"/>
+      <stop offset="1" stop-color="#b7c0c5"/>
+    </linearGradient>
+    <linearGradient id="rear-gradient" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#f3f5f3"/>
+      <stop offset="0.35" stop-color="#d5dbdc"/>
+      <stop offset="1" stop-color="#a8b3b9"/>
+    </linearGradient>
+    <linearGradient id="shoulder-gradient" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#77848b"/>
+      <stop offset="0.25" stop-color="#26343c"/>
+      <stop offset="0.66" stop-color="#10191f"/>
+      <stop offset="1" stop-color="#41515b"/>
+    </linearGradient>
+    <radialGradient id="well-gradient" cx="0.42" cy="0.18" r="0.86">
+      <stop stop-color="#69757c"/>
+      <stop offset="0.45" stop-color="#39464f"/>
+      <stop offset="0.67" stop-color="#111a20"/>
+      <stop offset="1" stop-color="#0a1116"/>
+    </radialGradient>
+    <linearGradient id="dpad-gradient" x1="0" y1="0" x2="0.55" y2="1">
+      <stop stop-color="#738088"/>
+      <stop offset="0.22" stop-color="#414e57"/>
+      <stop offset="0.7" stop-color="#1b2932"/>
+      <stop offset="1" stop-color="#43535e"/>
+    </linearGradient>
+    <radialGradient id="guide-gradient" cx="0.3" cy="0.18" r="0.9">
+      <stop stop-color="#ffffff"/>
+      <stop offset="0.3" stop-color="#dfe5e4"/>
+      <stop offset="0.57" stop-color="#8d999a"/>
+      <stop offset="0.8" stop-color="#d1d8d6"/>
+      <stop offset="1" stop-color="#69777b"/>
+    </radialGradient>
+    <radialGradient id="button-a-gradient" cx="0.3" cy="0.2" r="0.9">
+      <stop stop-color="#d0f575"/><stop offset="0.4" stop-color="#83bf22"/><stop offset="1" stop-color="#39660c"/>
+    </radialGradient>
+    <radialGradient id="button-b-gradient" cx="0.3" cy="0.2" r="0.9">
+      <stop stop-color="#ff9a76"/><stop offset="0.4" stop-color="#e54320"/><stop offset="1" stop-color="#8d1d11"/>
+    </radialGradient>
+    <radialGradient id="button-x-gradient" cx="0.3" cy="0.2" r="0.9">
+      <stop stop-color="#84c9ff"/><stop offset="0.4" stop-color="#2576e8"/><stop offset="1" stop-color="#123c8b"/>
+    </radialGradient>
+    <radialGradient id="button-y-gradient" cx="0.3" cy="0.2" r="0.9">
+      <stop stop-color="#fff18b"/><stop offset="0.4" stop-color="#edba24"/><stop offset="1" stop-color="#99620a"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Raised rear controls are drawn first; the housing overlaps their bases. -->
+  <g id="triggers" stroke="#718089" stroke-width="6" stroke-linejoin="round">
+    <g id="trigger-left" data-axis="2" data-center="675,200">
+      <path id="trigger-left-body" fill="url(#rear-gradient)"
+            d="M631 224 Q636 204 638 195 Q641 184 654 184 H696 Q709 184 712 195 Q714 204 719 224 Q675 221 631 224Z"/>
+      <path id="trigger-left-face" fill="#c5cdd0" stroke="#97a4aa" stroke-width="3"
+            d="M643 214 L646 196 Q647 191 655 191 H695 Q703 191 704 196 L707 214 Q675 210 643 214Z"/>
+      <rect id="trigger-left-meter" x="651" y="194" width="48" height="12" rx="4" fill="#83939c" stroke="none"/>
+    </g>
+    <!-- Reuse the left geometry reflected about the shell axis x=1000.
+         This also keeps the hidden lower corners inside the shoulder shapes. -->
+    <g id="trigger-right" data-axis="5" data-center="1325,200">
+      <use id="trigger-right-body" href="#trigger-left-body" transform="translate(2000 0) scale(-1 1)"/>
+      <use id="trigger-right-face" href="#trigger-left-face" transform="translate(2000 0) scale(-1 1)"/>
+      <use id="trigger-right-meter" href="#trigger-left-meter" transform="translate(2000 0) scale(-1 1)"/>
+    </g>
+  </g>
+  <g id="rear-battery-pack" stroke="#7b8991" stroke-width="5" transform="translate(0 46)">
+    <path id="battery-hump" fill="url(#rear-gradient)"
+          d="M845 250 L860 202 Q865 190 896 188 Q1000 180 1104 188 Q1135 190 1140 202 L1155 250Z"/>
+    <path id="battery-release" fill="#c7d0d3" stroke="#8a989f" stroke-width="3"
+          d="M930 192 Q1000 188 1070 192 L1074 197 Q1071 204 1051 205 H949 Q929 204 926 197Z"/>
+  </g>
+
+  <g id="shell" stroke-linecap="round" stroke-linejoin="round">
+    <path id="shell-outline" fill="url(#shell-gradient)" stroke="#66737b" stroke-width="5"
+          d="M543 268 C572 234 640 218 705 240
+             C791 272 826 322 1000 328 C1174 322 1209 272 1295 240
+             C1360 218 1428 234 1457 268
+             C1517 347 1558 470 1574 623
+             C1588 748 1568 810 1518 823 C1477 834 1425 801 1375 774
+             C1316 742 1252 722 1180 718 C1090 708 910 708 820 718
+             C748 722 684 742 625 774 C575 801 523 834 482 823
+             C432 810 412 748 426 623 C442 470 483 347 543 268Z"/>
+    <path id="upper-shell-band" fill="url(#rear-gradient)" stroke="#819098" stroke-width="4"
+          d="M543 268 C586 225 651 222 714 249
+             C800 284 831 293 1000 296 C1169 293 1200 284 1286 249
+             C1349 222 1414 225 1457 268 L1481 326
+             C1426 290 1360 282 1297 303 C1218 330 1185 374 1000 379
+             C815 374 782 330 703 303 C640 282 574 290 519 326Z"/>
+    <path id="upper-shell-seam" fill="none" stroke="#ffffff" stroke-opacity="0.75" stroke-width="5"
+          d="M534 317 C591 279 645 280 702 300 C790 332 826 371 1000 376
+             C1174 371 1210 332 1298 300 C1355 280 1409 279 1466 317"/>
+    <path id="left-grip-light" fill="none" stroke="#ffffff" stroke-opacity="0.48" stroke-width="14"
+          d="M503 389 C468 481 451 604 452 684 C453 757 470 790 499 793"/>
+    <path id="right-grip-light" fill="none" stroke="#ffffff" stroke-opacity="0.48" stroke-width="14"
+          d="M1497 389 C1532 481 1549 604 1548 684 C1547 757 1530 790 1501 793"/>
+    <path id="lower-shell-seam" fill="none" stroke="#929fa6" stroke-width="5"
+          d="M530 807 C597 788 663 738 739 725 C837 704 915 701 1000 701
+             C1085 701 1163 704 1261 725 C1337 738 1403 788 1470 807"/>
+  </g>
+
+  <g id="shoulders" fill="url(#rear-gradient)" stroke="#78868e" stroke-width="5" stroke-linejoin="round">
+    <path id="button-lb" data-button="4" data-center="656,264"
+          d="M543 264 C590 218 655 205 721 222 L754 278 C680 259 617 273 538 306Z"/>
+    <use id="button-rb" data-button="5" data-center="1344,264"
+         href="#button-lb" transform="translate(2000 0) scale(-1 1)"/>
+    <path d="M558 260 C603 229 658 219 710 230 M1290 230 C1342 219 1397 229 1442 260"
+          fill="none" stroke="#ffffff" stroke-opacity="0.75" stroke-width="4"/>
+  </g>
+  <g id="upper-controls">
+    <path id="charge-port-surround" fill="#a8b4bb" stroke="#76858e" stroke-width="3"
+          d="M916 298 Q1000 308 1084 298 L1081 318 Q1000 329 919 318Z"/>
+    <path id="charge-port" fill="#060d12" d="M930 304 Q1000 312 1070 304 L1067 315 Q1000 322 933 315Z"/>
+    <ellipse id="connect-button" cx="866" cy="321" rx="19" ry="7" fill="#b5c0c5" stroke="#7d8c94" stroke-width="3" transform="rotate(12 866 321)"/>
+    <path id="connect-mark" d="M826 312 Q818 318 826 325 M835 315 Q831 319 835 322" fill="none" stroke="#6d7c83" stroke-width="3"/>
+  </g>
+
+  <!-- Elliptical recesses convey the oblique view. Caps are runtime elements. -->
+  <g id="stick-wells" fill="url(#well-gradient)" stroke="#57666f" stroke-width="5">
+    <ellipse id="stick-left-well" data-button="9" data-axes="0,1" cx="648" cy="486" rx="86" ry="70"/>
+    <ellipse id="stick-right-well" data-button="10" data-axes="3,4" cx="1163" cy="633" rx="86" ry="70"/>
+  </g>
+  <g id="stick-well-rims" fill="none" stroke="#91a0a6" stroke-opacity="0.55" stroke-width="4">
+    <path d="M566 474 A86 70 0 0 1 730 474 M1081 621 A86 70 0 0 1 1245 621"/>
+  </g>
+
+  <g id="dpad" stroke-linejoin="round">
+    <ellipse id="dpad-recess" cx="825" cy="636" rx="107" ry="86" fill="#0a1319" stroke="#657780" stroke-width="5"/>
+    <ellipse id="dpad-disc" cx="825" cy="636" rx="95" ry="75" fill="#17252e" stroke="#88979c" stroke-width="4"/>
+    <path id="dpad-cross" fill="url(#dpad-gradient)" stroke="#b0b9ba" stroke-width="4"
+          d="M802 568 Q825 562 848 568 L851 597 Q853 611 869 613 L907 617
+             Q917 636 907 655 L869 659 Q853 661 851 675 L848 704
+             Q825 710 802 704 L799 675 Q797 661 781 659 L743 655
+             Q733 636 743 617 L781 613 Q797 611 799 597Z"/>
+    <g id="dpad-direction-marks" fill="#c1cacf" opacity="0.7">
+      <path id="dpad-up" data-button="11" data-center="825,582" d="M825 577 L832 586 H818Z"/>
+      <path id="dpad-down" data-button="12" data-center="825,690" d="M825 695 L832 686 H818Z"/>
+      <path id="dpad-left" data-button="13" data-center="773,636" d="M767 636 L777 631 V641Z"/>
+      <path id="dpad-right" data-button="14" data-center="883,636" d="M889 636 L879 631 V641Z"/>
+    </g>
+  </g>
+
+  <g id="face-buttons" stroke-linecap="round" stroke-linejoin="round">
+    <g id="button-a" data-button="0" transform="translate(1351 541)">
+      <ellipse cy="6" rx="46" ry="36" fill="#142519" stroke="#71867a" stroke-width="3"/>
+      <ellipse rx="44" ry="34" fill="url(#button-a-gradient)" stroke="#659b37" stroke-width="3"/>
+      <path id="letter-a" d="M-13 14 L0-15 L13 14 M-8 5 H8" fill="none" stroke="#365213" stroke-width="6"/>
+      <path d="M-25-17 Q-11-28 8-25" fill="none" stroke="#e2ffac" stroke-opacity="0.65" stroke-width="4"/>
+    </g>
+    <g id="button-b" data-button="1" transform="translate(1448 461)">
+      <ellipse cy="6" rx="46" ry="36" fill="#321915" stroke="#96605a" stroke-width="3"/>
+      <ellipse rx="44" ry="34" fill="url(#button-b-gradient)" stroke="#c35037" stroke-width="3"/>
+      <path id="letter-b" d="M-10-15 V15 H2 Q15 15 15 7 Q15 0 2 0 H-10 M2 0 Q13 0 13-7 Q13-15 2-15 H-10" fill="none" stroke="#7c271b" stroke-width="6"/>
+      <path d="M-25-17 Q-11-28 8-25" fill="none" stroke="#ffd7bc" stroke-opacity="0.65" stroke-width="4"/>
+    </g>
+    <g id="button-x" data-button="2" transform="translate(1258 471)">
+      <ellipse cy="6" rx="46" ry="36" fill="#14223c" stroke="#5b7398" stroke-width="3"/>
+      <ellipse rx="44" ry="34" fill="url(#button-x-gradient)" stroke="#4779c4" stroke-width="3"/>
+      <path id="letter-x" d="M-12-14 L12 14 M12-14 L-12 14" fill="none" stroke="#b6dfff" stroke-width="7"/>
+      <path d="M-25-17 Q-11-28 8-25" fill="none" stroke="#def2ff" stroke-opacity="0.7" stroke-width="4"/>
+    </g>
+    <g id="button-y" data-button="3" transform="translate(1358 393)">
+      <ellipse cy="6" rx="46" ry="36" fill="#49371a" stroke="#aa8c4e" stroke-width="3"/>
+      <ellipse rx="44" ry="34" fill="url(#button-y-gradient)" stroke="#cba334" stroke-width="3"/>
+      <path id="letter-y" d="M-12-14 L0 0 L12-14 M0 0 V14" fill="none" stroke="#9b6912" stroke-width="7"/>
+      <path d="M-25-17 Q-11-28 8-25" fill="none" stroke="#fff7b5" stroke-opacity="0.7" stroke-width="4"/>
+    </g>
+  </g>
+
+  <g id="system-buttons" stroke-linecap="round" stroke-linejoin="round">
+    <g id="button-back" data-button="6" data-center="887,477">
+      <ellipse cx="887" cy="480" rx="34" ry="23" fill="#060f15" stroke="#65777f" stroke-width="3"/>
+      <ellipse cx="887" cy="477" rx="30" ry="20" fill="url(#shoulder-gradient)"/>
+      <path d="M894 468 L879 477 L894 486Z" fill="#b0bbbd"/>
+    </g>
+    <g id="button-start" data-button="7" data-center="1143,477">
+      <ellipse cx="1143" cy="480" rx="34" ry="23" fill="#060f15" stroke="#65777f" stroke-width="3"/>
+      <ellipse cx="1143" cy="477" rx="30" ry="20" fill="url(#shoulder-gradient)"/>
+      <path d="M1136 468 L1151 477 L1136 486Z" fill="#b0bbbd"/>
+    </g>
+    <g id="button-guide" data-button="8" data-center="1003,475">
+      <ellipse cx="1003" cy="478" rx="57" ry="48" fill="#101d24" stroke="#84938f" stroke-width="3"/>
+      <ellipse cx="1003" cy="475" rx="41" ry="35" fill="url(#guide-gradient)" stroke="#e0e6e3" stroke-width="2"/>
+      <g id="guide-ring-quadrants" transform="translate(1003 475) scale(1 0.84)" fill="none" stroke="#89c932" stroke-width="6">
+        <path id="guide-quadrant-1" d="M-48-12 A50 50 0 0 1-12-48"/>
+        <path id="guide-quadrant-2" d="M12-48 A50 50 0 0 1 48-12"/>
+        <path id="guide-quadrant-3" d="M48 12 A50 50 0 0 1 12 48"/>
+        <path id="guide-quadrant-4" d="M-12 48 A50 50 0 0 1-48 12"/>
+      </g>
+      <!-- Neutral silver centre: no product logo artwork in this asset. -->
+    </g>
+  </g>
+</svg>

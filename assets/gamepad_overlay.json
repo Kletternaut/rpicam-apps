@@ -1,0 +1,16 @@
+{
+    "gamepad_overlay":
+    {
+        "device": "/dev/input/js0",
+        "deadzone": 0.25,
+        "ring_lifetime_ms": 820,
+        "scale": 0.5,
+        "reconnect_delay_ms": 1500,
+        "position": 9,
+        "hold_pulse_ms": 400,
+        "offset_x": 180,
+        "offset_y": 60,
+        "show_status": false,
+        "svg_path": "/usr/local/share/rpi-camera-assets/open_gamepad.svg"
+    }
+}

@@ -63,6 +63,25 @@ core_postproc_lib = shared_module('core-postproc', core_postproc_src,
                                   name_prefix : '',
                                  )
 
+# Gamepad overlay stage: read-only joydev monitor rendered onto the camera frame.
+# Uses librsvg + cairo to rasterise the controller SVG onto the frame.
+rsvg_dep = dependency('librsvg-2.0', required : true)
+cairo_dep = dependency('cairo', required : true)
+gamepad_overlay_postproc_lib = shared_module('gamepad-overlay-postproc',
+                                             files('gamepad_overlay_stage.cpp'),
+                                             include_directories : '../',
+                                             dependencies : [libcamera_dep, rsvg_dep, cairo_dep],
+                                             cpp_args : cpp_arguments,
+                                             install : true,
+                                             install_dir : posproc_libdir,
+                                             name_prefix : '',
+                                            )
+postproc_assets += files([
+    assets_dir / 'gamepad_overlay.json',
+    assets_dir / 'open_gamepad.svg',
+    assets_dir / 'open_gamepad.LICENSE.txt',
+])
+
 # OpenCV based postprocessing stages.
 enable_opencv = false
 opencv_dep = dependency('opencv4', required : get_option('enable_opencv'))
