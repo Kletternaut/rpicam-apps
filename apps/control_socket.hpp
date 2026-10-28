@@ -298,6 +298,7 @@ private:
 				const float v = parseFloat(val);
 				cl.set(libcamera::controls::AeEnable, true);
 				cl.set(libcamera::controls::ExposureValue, v);
+				cl.set(libcamera::controls::ExposureTimeMode, libcamera::controls::ExposureTimeModeAuto);
 				LOG(1, "ControlSocket: ExposureValue=" << v);
 			}
 			else if (key == "shutter")
@@ -305,12 +306,12 @@ private:
 				const int us = std::stoi(val);
 				if (us == 0)
 				{
-					cl.set(libcamera::controls::AeEnable, true);
+					cl.set(libcamera::controls::ExposureTimeMode, libcamera::controls::ExposureTimeModeAuto);
 					LOG(1, "ControlSocket: ExposureTime=auto");
 				}
 				else if (us > 0)
 				{
-					cl.set(libcamera::controls::AeEnable, false);
+					cl.set(libcamera::controls::ExposureTimeMode, libcamera::controls::ExposureTimeModeManual);
 					cl.set(libcamera::controls::ExposureTime, us);
 					LOG(1, "ControlSocket: ExposureTime=" << us << " us");
 				}

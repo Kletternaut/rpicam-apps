@@ -1,0 +1,58 @@
+{
+    "rt_roi_overlay": {
+        "initially_visible": true,
+        "layout": {
+            "columns": 2,
+            "x": 0.02,
+            "y": 0.03,
+            "width": 0.36,
+            "height": 0.128,
+            "step_x": 0.60,
+            "step_y": 0.145
+        },
+        "toggle": {
+            "x": 0.88,
+            "y": 0.9,
+            "width": 0.1,
+            "height": 0.07,
+            "opacity": 0.9
+        },
+        "reset": {
+            "x": 0.74,
+            "y": 0.9,
+            "width": 0.1,
+            "height": 0.07,
+            "opacity": 0.9
+        },
+        "scale": 1.0,
+        "opacity": 0.85,
+        "background_opacity": 0.25,
+        "foreground": "#ffffff",
+        "accent": "#00b4ff",
+        "background": "#101820",
+        "controls": [
+            { "parameter": "brightness", "enable": true },
+            { "parameter": "ev",          "enable": true },
+            { "parameter": "contrast",    "enable": true },
+            { "parameter": "saturation",  "enable": true },
+            { "parameter": "sharpness",   "enable": true },
+            { "parameter": "gain",        "enable": false },
+            { "parameter": "shutter",     "enable": true },
+            { "parameter": "framerate",   "enable": false },
+            { "parameter": "focus",       "enable": true },
+            { "parameter": "af",          "enable": true },
+            { "parameter": "awb_red",     "enable": false },
+            { "parameter": "awb_blue",    "enable": false },
+            { "parameter": "awb",         "enable": true },
+            { "parameter": "metering",    "enable": false },
+            { "parameter": "exposure",    "enable": false },
+            { "parameter": "denoise",     "enable": false },
+            { "parameter": "hdr",         "enable": true },
+            { "parameter": "zoom",        "enable": true },
+            { "parameter": "roi_x",       "enable": false },
+            { "parameter": "roi_y",       "enable": false },
+            { "parameter": "roi_width",   "enable": false },
+            { "parameter": "roi_height",  "enable": false }
+        ]
+    }
+}

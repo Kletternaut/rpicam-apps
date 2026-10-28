@@ -221,9 +221,9 @@ Clients parse this line and clamp the framerate slider maximum accordingly.
 ## Camera control semantics
 
 - **AWB:** `awb:<mode>` sends `AwbEnable=true` alongside the mode; `awbgains:<r>,<b>` sends `AwbEnable=false`. This prevents libcamera from retaining stale colour-gain state when switching between manual and auto AWB.
-- **EV:** `ev:<v>` explicitly sends `AeEnable=true` so the compensation is applied regardless of the auto-exposure pipeline state.
+- **EV:** `ev:<v>` explicitly sends `AeEnable=true` and `ExposureTimeModeAuto` so the compensation is applied regardless of the previous exposure mode. This also restores automatic analogue gain unless the same update explicitly requests manual gain.
 - **HDR:** on imx477 only `off` and `single-exp` are functional at runtime; `auto` and `sensor` both map to single-exposure HDR.
-- **Shutter/framerate:** `shutter:0` restores auto exposure; `framerate:0` removes the frame-rate cap. Setting both non-zero enters fully manual exposure. The maximum useful shutter duration is `1 / framerate` seconds.
+- **Shutter/framerate:** `shutter:0` restores automatic exposure time; positive shutter values set `ExposureTimeModeManual`. Shutter changes preserve the selected analogue-gain mode, so a manual shutter can still use automatic gain. Use a positive `gain:` value as well for fully manual exposure. `framerate:0` removes the frame-rate cap. The maximum useful shutter duration is `1 / framerate` seconds.
 - **Shutter auto-resend:** when the framerate is changed and shutter is not on auto, the new shutter µs (recalculated from the updated one-frame period) is sent automatically, so the camera always matches the displayed value.
 
 ## ROI / digital zoom

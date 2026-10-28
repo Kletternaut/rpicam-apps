@@ -20,9 +20,14 @@
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QThread>
+#include <QWheelEvent>
 #include <QWidget>
 
 #include "preview.hpp"
+#ifdef QT_RT_ROI_OVERLAY
+#include "qt_rt_roi_overlay.hpp"
+#endif
 
 class QtPreview; // forward declaration for MyWidget
 
@@ -54,13 +59,51 @@ public:
 	QSize size;
 	QImage image;
 
-	QRect selection_ {};
+	QRectF selection_ {};
 	bool selecting_ = false;
 	bool roi_active_ = false; // true while a sub-frame ROI is applied
-	QPoint start_pos_;
+	QPointF start_pos_;
 	QtPreview *owner_ = nullptr;
 
+	enum class Gesture { None, Overlay, Roi, Reset, Ignore };
+	Gesture gesture_ = Gesture::None;
+	Qt::MouseButton gesture_button_ = Qt::NoButton;
+	bool gesture_multiple_buttons_ = false;
+#ifdef QT_RT_ROI_OVERLAY
+	QtRtRoiOverlay overlay_;
+#endif
+	void CancelGesture()
+	{
+		gesture_ = Gesture::None;
+		gesture_button_ = Qt::NoButton;
+		gesture_multiple_buttons_ = false;
+		selecting_ = false;
+		selection_ = QRectF();
+#ifdef QT_RT_ROI_OVERLAY
+		overlay_.CancelDrag();
+#endif
+		update();
+	}
+
 protected:
+	bool event(QEvent *event) override
+	{
+		if (event->type() == QEvent::WindowDeactivate || event->type() == QEvent::Hide ||
+			event->type() == QEvent::UngrabMouse || event->type() == QEvent::Resize)
+			CancelGesture();
+		return QWidget::event(event);
+	}
+	rt_roi::State OverlayState()
+	{
+#ifdef QT_RT_ROI_OVERLAY
+		auto state = overlay_.Snapshot();
+		if (overlay_.Configured())
+			roi_active_ = state.roi_active;
+		return state;
+#else
+		return {};
+#endif
+	}
 	void paintEvent(QPaintEvent *) override
 	{
 		QPainter painter(this);
@@ -73,33 +116,108 @@ protected:
 			painter.setBrush(Qt::NoBrush);
 			painter.drawRect(selection_);
 		}
+#ifdef QT_RT_ROI_OVERLAY
+		overlay_.Paint(painter, QSize(width(), height()), OverlayState());
+#endif
 	}
 	void mousePressEvent(QMouseEvent *event) override
 	{
-		if (event->button() == Qt::LeftButton && !roi_active_)
+		// The first pressed button owns the complete gesture. Additional buttons
+		// cannot transfer an overlay drag to ROI selection (or reset it).
+		event->accept();
+		if (gesture_ != Gesture::None)
 		{
+			gesture_multiple_buttons_ = true;
+			return;
+		}
+		[[maybe_unused]] const auto state = OverlayState();
+		gesture_button_ = event->button();
+		gesture_multiple_buttons_ = false;
+#ifdef QT_RT_ROI_OVERLAY
+		const int hit = overlay_.Hit(event->pos(), QSize(width(), height()), state);
+		if (hit != QtRtRoiOverlay::NoHit)
+		{
+			gesture_ = Gesture::Overlay;
+			if (event->button() == Qt::LeftButton)
+				overlay_.Press(hit, event->pos(), QSize(width(), height()), state);
+			update();
+			return;
+		}
+#endif
+		gesture_ = Gesture::Ignore;
+		if (event->button() == Qt::RightButton)
+			gesture_ = Gesture::Reset;
+		else if (event->button() == Qt::LeftButton && !roi_active_ && width() > 0 && height() > 0)
+		{
+			gesture_ = Gesture::Roi;
 			selecting_ = true;
 			start_pos_ = event->pos();
-			selection_ = QRect(start_pos_, start_pos_);
+			selection_ = QRectF(start_pos_, start_pos_);
 			update();
 		}
 	}
 	void mouseMoveEvent(QMouseEvent *event) override
 	{
+		event->accept();
+		[[maybe_unused]] const auto state = OverlayState();
+#ifdef QT_RT_ROI_OVERLAY
+		if (gesture_ == Gesture::Overlay && gesture_button_ == Qt::LeftButton &&
+			(event->buttons() & Qt::LeftButton))
+		{
+			overlay_.Drag(event->pos(), QSize(width(), height()), state);
+			update();
+			return;
+		}
+#endif
 		if (selecting_)
 		{
-			int dx = event->pos().x() - start_pos_.x();
-			int dy = event->pos().y() - start_pos_.y();
-			// Constrain selection to the preview window's aspect ratio so the
-			// resulting ScalerCrop matches the output resolution AR exactly.
-			float ar = float(width()) / float(height());
-			if (std::abs(dx) >= static_cast<int>(std::abs(dy) * ar))
-				dy = (dy >= 0 ? 1 : -1) * static_cast<int>(std::abs(dx) / ar);
+			if (roi_active_)
+			{
+				// A socket or other control changed the crop during selection.
+				selecting_ = false;
+				selection_ = QRectF();
+				gesture_ = Gesture::Ignore;
+			}
 			else
-				dx = (dx >= 0 ? 1 : -1) * static_cast<int>(std::abs(dy) * ar);
-			selection_ = QRect(start_pos_, start_pos_ + QPoint(dx, dy)).normalized();
+				UpdateSelection(event->pos());
 			update();
 		}
+	}
+	void UpdateSelection(const QPointF &position)
+	{
+		if (width() <= 0 || height() <= 0)
+			return;
+		const double dx = position.x() - start_pos_.x(), dy = position.y() - start_pos_.y();
+		const double sign_x = dx < 0 ? -1 : 1, sign_y = dy < 0 ? -1 : 1;
+		// Equal normalized width/height preserves the preview aspect ratio.
+		// Limit both axes together so every drag direction stays inside the image.
+		double fraction = std::max(std::abs(dx) / width(), std::abs(dy) / height());
+		fraction = std::min(fraction, (sign_x > 0 ? width() - start_pos_.x() : start_pos_.x()) / width());
+		fraction = std::min(fraction, (sign_y > 0 ? height() - start_pos_.y() : start_pos_.y()) / height());
+		selection_ = QRectF(start_pos_, start_pos_ + QPointF(sign_x * fraction * width(),
+															 sign_y * fraction * height())).normalized();
+	}
+	void wheelEvent(QWheelEvent *event) override
+	{
+		[[maybe_unused]] const auto state = OverlayState();
+#ifdef QT_RT_ROI_OVERLAY
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+		const QPointF position = event->position();
+#else
+		const QPointF position = event->posF();
+#endif
+		const int hit = overlay_.Hit(position, QSize(width(), height()), state);
+		if (gesture_ != Gesture::None || hit != QtRtRoiOverlay::NoHit)
+		{
+			// Scrolling during a drag must not act on a second control.
+			if (gesture_ == Gesture::None)
+				overlay_.Wheel(hit, event->angleDelta().y(), state);
+			event->accept();
+			update();
+			return;
+		}
+#endif
+		event->ignore();
 	}
 	void mouseReleaseEvent(QMouseEvent *event) override;
 	QSize sizeHint() const override
@@ -139,10 +257,30 @@ public:
 	}
 	void SetRoiCallback(RoiCallback cb) override
 	{
-		// SetRoiCallback is called after the constructor (pane_ is already set).
-		// mouseReleaseEvent fires on the Qt thread, writes happen on the main thread
-		// before any user interaction — so no lock needed in this context.
-		roi_callback_ = std::move(cb);
+		auto set = [this, cb = std::move(cb)]() mutable { roi_callback_ = std::move(cb); };
+		if (QThread::currentThread() == pane_->thread())
+			set();
+		else
+			QMetaObject::invokeMethod(pane_, std::move(set), Qt::BlockingQueuedConnection);
+	}
+	bool SetRtRoiOverlay(std::shared_ptr<const rt_roi::Config> config, std::function<rt_roi::State()> read,
+						 std::function<void(const std::string &, double)> write) override
+	{
+#ifdef QT_RT_ROI_OVERLAY
+		auto set = [this, config = std::move(config), read = std::move(read), write = std::move(write)]() mutable {
+			pane_->CancelGesture();
+			pane_->overlay_.Set(std::move(config), std::move(read), std::move(write));
+			pane_->update();
+		};
+		// Synchronous removal also waits for a callback already running on Qt.
+		if (QThread::currentThread() == pane_->thread())
+			set();
+		else
+			QMetaObject::invokeMethod(pane_, std::move(set), Qt::BlockingQueuedConnection);
+		return true;
+#else
+		return false;
+#endif
 	}
 	virtual void Show(int fd, std::span<uint8_t> span, StreamInfo const &info) override
 	{
@@ -285,7 +423,10 @@ private:
 		// Need to get the window border sizes (it seems to be unreasonably difficult...)
 		main_window.move(options->Get().preview_x + 2, options->Get().preview_y + 28);
 		main_window.show();
-		pane_ = &pane;
+		{
+			std::lock_guard lock(mutex_);
+			pane_ = &pane;
+		}
 		cond_var_.notify_one();
 		application.exec();
 	}
@@ -304,36 +445,51 @@ private:
 // can call owner_->SelectionFinished().
 void MyWidget::mouseReleaseEvent(QMouseEvent *event)
 {
-	if (event->button() == Qt::RightButton)
+	event->accept();
+	OverlayState();
+#ifdef QT_RT_ROI_OVERLAY
+	if (event->button() == gesture_button_ && gesture_button_ == Qt::LeftButton &&
+		gesture_ == Gesture::Overlay && !gesture_multiple_buttons_)
+		overlay_.Release(event->pos(), QSize(width(), height()), overlay_.Snapshot());
+#endif
+	if (event->button() == gesture_button_ && gesture_ == Gesture::Reset)
 	{
-		// Right-click: reset ROI to full frame.
+		// Only a right-button gesture started outside the controls can reset ROI.
 		selecting_ = false;
 		roi_active_ = false;
-		selection_ = QRect();
-		update();
+		selection_ = QRectF();
 		if (owner_)
 			owner_->SelectionFinished(0.0f, 0.0f, 1.0f, 1.0f);
-		return;
 	}
-
-	if (selecting_ && event->button() == Qt::LeftButton)
+	else if (event->button() == gesture_button_ && gesture_ == Gesture::Roi && selecting_ && !roi_active_)
 	{
 		selecting_ = false;
-		selection_ = QRect(start_pos_, event->pos()).normalized();
-		update();
+		// Apply the same aspect lock and bounds used while displaying the drag.
+		UpdateSelection(event->pos());
 
-		if (owner_ && !selection_.isNull() && width() > 0 && height() > 0)
+		if (owner_ && selection_.width() >= 3 && selection_.height() >= 3 && width() > 0 && height() > 0)
 		{
 			float roi_x = float(selection_.left()) / float(width());
 			float roi_y = float(selection_.top()) / float(height());
 			float roi_w = float(selection_.width()) / float(width());
 			float roi_h = float(selection_.height()) / float(height());
 			roi_active_ = true;
-			selection_ = QRect(); // clear rectangle before applying
-			update();
 			owner_->SelectionFinished(roi_x, roi_y, roi_w, roi_h);
 		}
 	}
+	if (event->button() == gesture_button_)
+	{
+		// Keep consuming any additional buttons until the whole gesture ends.
+		gesture_ = Gesture::Ignore;
+		selecting_ = false;
+		selection_ = QRectF();
+#ifdef QT_RT_ROI_OVERLAY
+		overlay_.CancelDrag();
+#endif
+	}
+	if (event->buttons() == Qt::NoButton)
+		CancelGesture();
+	update();
 }
 
 static Preview *Create(Options const *options)

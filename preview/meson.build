@@ -106,18 +106,33 @@ endif
 enable_qt = false
 
 if not get_option('enable_qt').disabled()
+    qt_package = 'qt6'
     qt_dep = dependency('qt6', modules : ['Core', 'Widgets'], required : false)
 
     if not qt_dep.found()
         message('Qt6 libraries not found, falling back to Qt5')
+        qt_package = 'qt5'
         qt_dep = dependency('qt5', modules : ['Core', 'Widgets'], required : get_option('enable_qt'))
     endif
 
     if qt_dep.found()
-        qt_lib = shared_module('qt-preview', files('qt_preview.cpp'),
+        qt_sources = files('qt_preview.cpp')
+        qt_dependencies = [qt_dep, libcamera_dep]
+        qt_arguments = cpp_arguments
+        # Keep ordinary Qt previews available without QtSvg. The overlay stage
+        # checks support at runtime and reports the missing dependency clearly.
+        qt_svg_dep = dependency(qt_package, modules : ['Svg'], required : false)
+        if qt_svg_dep.found()
+            qt_sources += files('qt_rt_roi_overlay.cpp')
+            qt_dependencies += qt_svg_dep
+            qt_arguments += '-DQT_RT_ROI_OVERLAY=1'
+        else
+            message('QtSvg not found: runtime-control SVG overlay unavailable')
+        endif
+        qt_lib = shared_module('qt-preview', qt_sources,
                                include_directories : '../',
-                               dependencies : [qt_dep, libcamera_dep],
-                               cpp_args : cpp_arguments,
+                               dependencies : qt_dependencies,
+                               cpp_args : qt_arguments,
                                install : true,
                                install_dir: preview_libdir,
                                name_prefix : '',

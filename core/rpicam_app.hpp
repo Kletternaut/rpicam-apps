@@ -34,6 +34,7 @@
 #include "core/completed_request.hpp"
 #include "core/dma_heaps.hpp"
 #include "core/post_processor.hpp"
+#include "core/rt_roi_overlay.hpp"
 #include "core/stream_info.hpp"
 
 struct Options;
@@ -172,6 +173,9 @@ public:
 	Rectangle GetSensorArea() const;
 	bool SupportsScalerCrops() const;
 	void SetPreviewRoiCallback(std::function<void(float, float, float, float)> cb);
+	bool SetPreviewRtRoiOverlay(std::shared_ptr<const rt_roi::Config> config);
+	rt_roi::State GetRtRoiState();
+	void SetRtRoiValue(const std::string &parameter, double value);
 	StreamInfo GetStreamInfo(Stream const *stream) const;
 	const ControlList &GetProperties() const
 	{
@@ -263,6 +267,10 @@ private:
 	void stopPreview();
 	void previewThread();
 	void configureDenoise(const std::string &denoise_mode);
+	// These helpers require control_mutex_.
+	void initialiseRtRoiState();
+	void updateRtRoiState(const ControlList &controls);
+	void setControlsLocked(const ControlList &controls);
 	Mode selectMode(const Mode &mode) const;
 
 	std::unique_ptr<CameraManager> camera_manager_;
@@ -294,6 +302,9 @@ private:
 	// For setting camera controls.
 	std::mutex control_mutex_;
 	ControlList controls_;
+	rt_roi::State rt_roi_state_;
+	Rectangle rt_roi_sensor_;
+	Rectangle rt_roi_default_crop_;
 	// Other:
 	uint64_t last_timestamp_;
 	uint64_t sequence_ = 0;

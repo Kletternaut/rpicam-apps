@@ -8,6 +8,7 @@ rpicam_app_src += files([
     'dl_lib.cpp',
     'dma_heaps.cpp',
     'rpicam_app.cpp',
+    'rt_roi_controls.cpp',
     'options.cpp',
     'post_processor.cpp',
 ])
@@ -19,6 +20,7 @@ core_headers = files([
     'dma_heaps.hpp',
     'frame_info.hpp',
     'rpicam_app.hpp',
+    'rt_roi_overlay.hpp',
     'rpicam_encoder.hpp',
     'logging.hpp',
     'metadata.hpp',

@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 #include <span>
 #include <string>
@@ -17,6 +18,7 @@
 #include <libcamera/base/span.h>
 
 #include "core/stream_info.hpp"
+#include "core/rt_roi_overlay.hpp"
 
 struct Options;
 class DlLib;
@@ -44,6 +46,14 @@ public:
 	virtual void SetRoiCallback(RoiCallback cb)
 	{
 		(void)cb;
+	}
+	// Configure a preview-only runtime-control overlay. A null config detaches
+	// callbacks synchronously; unsupported preview backends return false.
+	virtual bool SetRtRoiOverlay(std::shared_ptr<const rt_roi::Config> config,
+							 std::function<rt_roi::State()> read,
+							 std::function<void(const std::string &, double)> write)
+	{
+		return false;
 	}
 	virtual void SetInfoText(const std::string &text)
 	{

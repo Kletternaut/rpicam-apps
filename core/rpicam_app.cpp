@@ -639,6 +639,8 @@ void RPiCamApp::StartCamera()
 {
 	// This makes all the Request objects that we shall need.
 	makeRequests();
+	std::unique_lock<std::mutex> control_lock(control_mutex_);
+	rt_roi_state_.enabled = false;
 
 	// Build a list of initial controls that we must set in the camera before starting it.
 	// We don't overwrite anything the application may have set before calling us.
@@ -800,11 +802,14 @@ void RPiCamApp::StartCamera()
 		controls_.set(controls::AeFlickerPeriod, options_->Get().flicker_period.get<std::chrono::microseconds>());
 	}
 
+	initialiseRtRoiState();
+	updateRtRoiState(controls_);
 	if (camera_->start(&controls_))
 		throw std::runtime_error("failed to start camera");
 	controls_.clear();
 	camera_started_ = true;
 	last_timestamp_ = 0;
+	control_lock.unlock();
 
 	post_processor_.Start();
 
@@ -816,11 +821,20 @@ void RPiCamApp::StartCamera()
 			throw std::runtime_error("Failed to queue request");
 	}
 
+	{
+		std::lock_guard<std::mutex> lock(control_mutex_);
+		rt_roi_state_.enabled = true;
+	}
 	LOG(2, "Camera started!");
 }
 
 void RPiCamApp::StopCamera()
 {
+	{
+		// Disable preview callbacks before the camera or its configuration can change.
+		std::lock_guard<std::mutex> lock(control_mutex_);
+		rt_roi_state_.enabled = false;
+	}
 	{
 		// We don't want QueueRequest to run asynchronously while we stop the camera.
 		std::lock_guard<std::mutex> lock(camera_stop_mutex_);
@@ -846,7 +860,10 @@ void RPiCamApp::StopCamera()
 
 	requests_.clear();
 
-	controls_.clear(); // no need for mutex here
+	{
+		std::lock_guard<std::mutex> lock(control_mutex_);
+		controls_.clear();
+	}
 
 	if (!options_->Get().help)
 		LOG(2, "Camera stopped!");
@@ -986,12 +1003,18 @@ void RPiCamApp::ShowPreview(CompletedRequestPtr &completed_request, Stream *stre
 void RPiCamApp::SetControls(const ControlList &controls)
 {
 	std::lock_guard<std::mutex> lock(control_mutex_);
+	setControlsLocked(controls);
+}
+
+void RPiCamApp::setControlsLocked(const ControlList &controls)
+{
 
 	// Add new controls to the stored list. If a control is duplicated,
 	// the value in the argument replaces the previously stored value.
 	// These controls will be applied to the next StartCamera or request.
 	for (const auto &c : controls)
 		controls_.set(c.first, c.second);
+	updateRtRoiState(controls);
 }
 
 libcamera::Rectangle RPiCamApp::GetSensorArea() const

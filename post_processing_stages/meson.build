@@ -19,6 +19,7 @@ core_postproc_src = files([
     'motion_detect_stage.cpp',
     'negate_stage.cpp',
     'acoustic_focus_stage.cpp',
+    'rt_roi_overlay_stage.cpp',
 ])
 
 # Core assets
@@ -27,6 +28,7 @@ postproc_assets += files([
     assets_dir / 'motion_detect.json',
     assets_dir / 'negate.json',
     assets_dir / 'acoustic_focus.json',
+    assets_dir / 'rt_roi_overlay.json',
 ])
 
 # GStreamer based preview stage. Sends lores frames over RTP/UDP as a preview
