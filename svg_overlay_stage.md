@@ -1,37 +1,36 @@
-# svg_overlay — konfigurierbares SVG-Logo als Post-Processing-Stage
+# svg_overlay — configurable SVG logo post-processing stage
 
-Stand: 30.10.2026. Diese Stage blendet eine konfigurierbare SVG-Grafik (z. B. ein
-Logo) dauerhaft in das Hauptbild von rpicam-apps ein. Position, Größe und
-Transparenz kommen aus der JSON-Konfiguration; im Qt-Preview ist der
-Logo-Bereich optional klickbar und öffnet eine URL.
+Status: 2026-10-30. This stage composites a configurable SVG graphic (e.g. a
+logo) into the main image of rpicam-apps. Position, size and transparency come
+from the JSON configuration; in the Qt preview the logo area is optionally
+clickable and opens a URL.
 
 ## Features
 
-- **Einmalige Rasterisierung:** Die SVG wird nur beim Start in `Configure()`
-  gerastert (librsvg + cairo). Pro Frame läuft ausschließlich ein
-  Alpha-Blend des vorberechneten Pixelbilds — keine SVG-Parsing-Kosten im
-  Livestream.
-- **Anker-Semantik ohne Überraschungen:** `x`/`y` sind 0..1, wobei
-  `0` = bündig links/oben und `1` = bündig rechts/unten. Werte dazwischen
-  skalieren linear über den verbleibenden Platz. Es gibt keine Kombination,
-  die das Logo aus dem Bild schiebt — kein Start-Crash mehr.
-- **Höhe folgt dem Seitenverhältnis:** `width` ist die echte Logo-Breite
-  relativ zum Bild; die Höhe ergibt sich automatisch aus dem
-  SVG-Seitenverhältnis. Ein `height`-Schlüssel wird ignoriert (Log-Hinweis).
-- **Kantenglättung:** Die SVG wird bei Referenzauflösung gerastert und mit
-  Flächenmittelung (Alpha-korrekt, gleicher Ansatz wie die Gamepad-Stage) auf
-  die Zielgröße verkleinert. Dünne Konturen überleben das Verkleinern.
-- **Klickbare URL (Qt-Preview):** Optional öffnet ein Linksklick auf den
-  Logo-Bereich eine `http(s)`-URL im Browser. In aufgezeichneten Videos ist
-  die URL naturgemäß nicht anklickbar.
-- **Sauberer YUV420-Blend:** Luma je Pixel, Chroma je geteiltem 2×2-Block,
-  mit Berücksichtigung des Stream-Farbraums (BT.601/709/2020, limited/full).
+- **One-time rasterisation:** The SVG is rasterised only once at startup in
+  `Configure()` (librsvg + cairo). Each frame only performs an alpha blend of
+  the precomputed pixel image — no SVG parsing cost in the live stream.
+- **Anchor semantics without surprises:** `x`/`y` are 0..1, where
+  `0` = flush left/top and `1` = flush right/bottom. Values in between scale
+  linearly across the remaining space. No combination can push the logo out
+  of the frame — no startup crash possible.
+- **Height follows the aspect ratio:** `width` is the actual logo width
+  relative to the image; the height is derived automatically from the SVG's
+  aspect ratio. A `height` key is ignored (log notice).
+- **Edge smoothing:** The SVG is rasterised at a reference resolution and
+  scaled down with area averaging (alpha-correct, same approach as the
+  gamepad stage). Thin outlines survive the downscale.
+- **Clickable URL (Qt preview):** Optionally, a left click on the logo area
+  opens an `http(s)` URL in the browser. In recorded videos the URL is, of
+  course, not clickable.
+- **Clean YUV420 blend:** luma per pixel, chroma per shared 2x2 block, taking
+  the stream colour space into account (BT.601/709/2020, limited/full).
 
 ## Build
 
-Die Stage wird als eigenes Modul `svg-overlay-postproc.so` gebaut. Sie ist
-optional: Ohne `librsvg2-dev`/`libcairo2-dev` wird sie übersprungen und der
-Rest von rpicam-apps baut normal weiter.
+The stage is built as a separate module `svg-overlay-postproc.so`. It is
+optional: without `librsvg2-dev`/`libcairo2-dev` it is skipped and the rest of
+rpicam-apps builds normally.
 
 ```sh
 sudo apt install librsvg2-dev libcairo2-dev
@@ -44,9 +43,9 @@ sudo meson install -C build
 
 ![svg_overlay stage preview](assets/svg_stage-preview-overlay.png)
 
-## Konfiguration
+## Configuration
 
-Beispiel (`assets/svg_overlay.json`):
+Example (`assets/svg_overlay.json`):
 
 ```json
 {
@@ -61,34 +60,34 @@ Beispiel (`assets/svg_overlay.json`):
 }
 ```
 
-| Schlüssel | Bereich | Bedeutung |
+| Key | Range | Meaning |
 |---|---|---|
-| `svg_path` | Pfad | SVG-Datei (Pflicht) |
-| `x`, `y` | 0..1 | Anker: 0 = bündig links/oben, 1 = bündig rechts/unten |
-| `width` | 0..1 | echte Logo-Breite als Anteil der Bildbreite |
-| `opacity` | 0..1 | globale Deckkraft, multipliziert mit dem SVG-Alpha |
-| `url` | optional | `http(s)`-Ziel für den Klick im Qt-Preview |
+| `svg_path` | path | SVG file (required) |
+| `x`, `y` | 0..1 | anchor: 0 = flush left/top, 1 = flush right/bottom |
+| `width` | 0..1 | actual logo width as a fraction of the image width |
+| `opacity` | 0..1 | global opacity, multiplied with the SVG alpha |
+| `url` | optional | `http(s)` target for the click in the Qt preview |
 
-Start:
+Run:
 
 ```sh
 rpicam-vid -t 0 --post-process-file /usr/local/share/rpi-camera-assets/svg_overlay.json
 ```
 
-## Dateien
+## Files
 
-- `post_processing_stages/svg_overlay_stage.cpp` — Stage-Implementierung
-- `post_processing_stages/meson.build` — Modul-Build (Abschnitt `svg-overlay-postproc`)
-- `assets/svg_overlay.json` — Beispielkonfiguration
-- `assets/sample_logo.svg` — Beispiel-Logo
-- `preview/preview_plane_resample.hpp` — gefilterte Resampling-Stufen für den
-  Logo-Bereich im Qt-Preview (Full-Frame bleibt auf dem schnellen
-  Nearest-Neighbour-Pfad)
-- `docs/svg-overlay-stage.md` — technische Dokumentation
+- `post_processing_stages/svg_overlay_stage.cpp` — stage implementation
+- `post_processing_stages/meson.build` — module build (`svg-overlay-postproc` section)
+- `assets/svg_overlay.json` — example configuration
+- `assets/sample_logo.svg` — example logo
+- `preview/preview_plane_resample.hpp` — filtered resampling stages for the
+  logo area in the Qt preview (the full frame stays on the fast
+  nearest-neighbour path)
+- `docs/svg-overlay-stage.md` — technical documentation
 
-## Hinweise
+## Notes
 
-- Die klickbare Fläche entspricht dem konfigurierten Rechteck des Logos im
-  Preview; die URL greift nur im Live-Preview (`--preview-backend qt`).
-- Das SVG-Seitenverhältnis wird aus den intrinsischen Dimensionen gelesen;
-  fehlen sie, wird quadratisch angenommen.
+- The clickable area matches the configured logo rectangle in the preview;
+  the URL only applies in the live preview (`--preview-backend qt`).
+- The SVG aspect ratio is read from the intrinsic dimensions; if they are
+  missing, a square is assumed.
