@@ -40,6 +40,10 @@ ninja -C build
 sudo meson install -C build
 ```
 
+## Preview
+
+![svg_overlay stage preview](assets/svg_stage-preview-overlay.png)
+
 ## Konfiguration
 
 Beispiel (`assets/svg_overlay.json`):
