@@ -65,6 +65,28 @@ core_postproc_lib = shared_module('core-postproc', core_postproc_src,
                                   name_prefix : '',
                                  )
 
+# SVG overlay stage: configurable logo composited onto the main stream.
+# Built separately so systems without librsvg/cairo can still build rpicam-apps.
+rsvg_dep = dependency('librsvg-2.0', required : false)
+cairo_dep = dependency('cairo', required : false)
+if rsvg_dep.found() and cairo_dep.found()
+    svg_overlay_postproc_lib = shared_module('svg-overlay-postproc',
+                                             files('svg_overlay_stage.cpp'),
+                                             include_directories : '../',
+                                             dependencies : [libcamera_dep, rsvg_dep, cairo_dep],
+                                             cpp_args : cpp_arguments,
+                                             install : true,
+                                             install_dir : posproc_libdir,
+                                             name_prefix : '',
+                                            )
+    postproc_assets += files([
+        assets_dir / 'svg_overlay.json',
+        assets_dir / 'sample_logo.svg',
+    ])
+else
+    message('SVG overlay stage disabled: install librsvg2-dev and libcairo2-dev to enable it')
+endif
+
 # OpenCV based postprocessing stages.
 enable_opencv = false
 opencv_dep = dependency('opencv4', required : get_option('enable_opencv'))

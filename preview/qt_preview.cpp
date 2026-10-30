@@ -5,6 +5,7 @@
  * qt_preview.cpp - Qt preview window
  */
 
+#include <atomic>
 #include <condition_variable>
 #include <iostream>
 #include <mutex>
@@ -15,16 +16,19 @@
 #include "core/options.hpp"
 
 #include <QApplication>
+#include <QDesktopServices>
 #include <QImage>
 #include <QMainWindow>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QThread>
+#include <QUrl>
 #include <QWheelEvent>
 #include <QWidget>
 
 #include "preview.hpp"
+#include "preview_plane_resample.hpp"
 #ifdef QT_RT_ROI_OVERLAY
 #include "qt_rt_roi_overlay.hpp"
 #endif
@@ -58,6 +62,8 @@ public:
 	}
 	QSize size;
 	QImage image;
+	QRectF link_rect_;
+	QString link_url_;
 
 	QRectF selection_ {};
 	bool selecting_ = false;
@@ -65,7 +71,7 @@ public:
 	QPointF start_pos_;
 	QtPreview *owner_ = nullptr;
 
-	enum class Gesture { None, Overlay, Roi, Reset, Ignore };
+	enum class Gesture { None, Overlay, Roi, Reset, Link, Ignore };
 	Gesture gesture_ = Gesture::None;
 	Qt::MouseButton gesture_button_ = Qt::NoButton;
 	bool gesture_multiple_buttons_ = false;
@@ -83,6 +89,17 @@ public:
 		overlay_.CancelDrag();
 #endif
 		update();
+	}
+	void SetClickTarget(double x, double y, double width, double height, const std::string &url)
+	{
+		link_rect_ = url.empty() ? QRectF() : QRectF(x, y, width, height);
+		link_url_ = QString::fromStdString(url);
+		update();
+	}
+	bool LinkContains(const QPointF &position) const
+	{
+		return !link_url_.isEmpty() && width() > 0 && height() > 0 &&
+			link_rect_.contains(QPointF(position.x() / width(), position.y() / height()));
 	}
 
 protected:
@@ -107,6 +124,7 @@ protected:
 	void paintEvent(QPaintEvent *) override
 	{
 		QPainter painter(this);
+		painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
 		painter.drawImage(rect(), image, image.rect());
 		if (!selection_.isNull())
 		{
@@ -147,6 +165,8 @@ protected:
 		gesture_ = Gesture::Ignore;
 		if (event->button() == Qt::RightButton)
 			gesture_ = Gesture::Reset;
+		else if (event->button() == Qt::LeftButton && LinkContains(event->pos()))
+			gesture_ = Gesture::Link;
 		else if (event->button() == Qt::LeftButton && !roi_active_ && width() > 0 && height() > 0)
 		{
 			gesture_ = Gesture::Roi;
@@ -159,6 +179,8 @@ protected:
 	void mouseMoveEvent(QMouseEvent *event) override
 	{
 		event->accept();
+		if (gesture_ == Gesture::None)
+			setCursor(LinkContains(event->pos()) ? Qt::PointingHandCursor : Qt::ArrowCursor);
 		[[maybe_unused]] const auto state = OverlayState();
 #ifdef QT_RT_ROI_OVERLAY
 		if (gesture_ == Gesture::Overlay && gesture_button_ == Qt::LeftButton &&
@@ -282,6 +304,24 @@ public:
 		return false;
 #endif
 	}
+	bool SetClickTarget(double x, double y, double width, double height, const std::string &url) override
+	{
+		// Snapshot for Show(): the overlay region gets a filtered preview
+		// re-render while the rest of the frame stays cheap nearest-neighbour.
+		overlay_x_ = x;
+		overlay_y_ = y;
+		overlay_w_ = width;
+		overlay_h_ = height;
+		overlay_region_active_.store(width > 0 && height > 0, std::memory_order_release);
+		auto set = [this, x, y, width, height, url]() {
+			pane_->SetClickTarget(x, y, width, height, url);
+		};
+		if (QThread::currentThread() == pane_->thread())
+			set();
+		else
+			QMetaObject::invokeMethod(pane_, std::move(set), Qt::BlockingQueuedConnection);
+		return true;
+	}
 	virtual void Show(int fd, std::span<uint8_t> span, StreamInfo const &info) override
 	{
 		// Quick and simple nearest-neighbour-ish resampling is used here.
@@ -377,6 +417,51 @@ public:
 			}
 		}
 
+		// The overlay region gets a properly filtered re-render so its thin
+		// strokes survive the downscale; the rest of the frame keeps the cheap
+		// nearest-neighbour path above. Filtering just this rectangle costs a
+		// fraction of a full-frame filter.
+		if (overlay_region_active_.load(std::memory_order_acquire))
+		{
+			const double ox = std::clamp(overlay_x_, 0.0, 1.0);
+			const double oy = std::clamp(overlay_y_, 0.0, 1.0);
+			const double ow = std::clamp(overlay_w_, 0.0, 1.0 - ox);
+			const double oh = std::clamp(overlay_h_, 0.0, 1.0 - oy);
+			const int dx0 = std::max(0, std::min(int(window_width_) - 1, int(std::lround(ox * window_width_))));
+			const int dy0 = std::max(0, std::min(int(window_height_) - 1, int(std::lround(oy * window_height_))));
+			const int dw = std::max(1, std::min(int(window_width_) - dx0, int(std::lround(ow * window_width_))));
+			const int dh = std::max(1, std::min(int(window_height_) - dy0, int(std::lround(oh * window_height_))));
+			const int sx0 = std::max(0, std::min(int(info.width) - 1, int(std::lround(ox * info.width))));
+			const int sy0 = std::max(0, std::min(int(info.height) - 1, int(std::lround(oy * info.height))));
+			const int sw = std::max(1, std::min(int(info.width) - sx0, int(std::lround(ow * info.width))));
+			const int sh = std::max(1, std::min(int(info.height) - sy0, int(std::lround(oh * info.height))));
+			const size_t yBytes = size_t(info.stride) * info.height;
+			const size_t uvBytes = size_t(info.stride / 2) * (info.height / 2);
+			const uint8_t *yBase = span.data() + size_t(sy0) * info.stride + sx0;
+			const uint8_t *uBase = span.data() + yBytes + size_t(sy0 / 2) * (info.stride / 2) + sx0 / 2;
+			const uint8_t *vBase = span.data() + yBytes + uvBytes + size_t(sy0 / 2) * (info.stride / 2) + sx0 / 2;
+			const auto &luma = yScaler_.resize(yBase, sw, sh, info.stride, dw, dh);
+			const auto &chromaU = uScaler_.resize(uBase, sw / 2, sh / 2, info.stride / 2, dw, dh);
+			const auto &chromaV = vScaler_.resize(vBase, sw / 2, sh / 2, info.stride / 2, dw, dh);
+			for (int y = 0; y < dh; ++y)
+			{
+				uint8_t *dest = pane_->image.scanLine(dy0 + y) + size_t(dx0) * 3;
+				for (int x = 0; x < dw; ++x)
+				{
+					const size_t i = size_t(y) * dw + x;
+					int Y = int(luma[i]) - offsetY;
+					int U = int(chromaU[i]) - 128;
+					int V = int(chromaV[i]) - 128;
+					int R = coeffY * Y + coeffVR * V;
+					int G = coeffY * Y + coeffUG * U + coeffVG * V;
+					int B = coeffY * Y + coeffUB * U;
+					*(dest++) = std::clamp(R, 0, 255);
+					*(dest++) = std::clamp(G, 0, 255);
+					*(dest++) = std::clamp(B, 0, 255);
+				}
+			}
+		}
+
 		pane_->update();
 
 		// Return the buffer to the camera system.
@@ -438,6 +523,9 @@ private:
 	std::mutex mutex_;
 	std::condition_variable cond_var_;
 	std::vector<uint8_t> tmp_stripe_;
+	preview_resample::PlaneScaler yScaler_, uScaler_, vScaler_;
+	double overlay_x_ = 0.0, overlay_y_ = 0.0, overlay_w_ = 0.0, overlay_h_ = 0.0;
+	std::atomic<bool> overlay_region_active_{false};
 	RoiCallback roi_callback_;
 };
 
@@ -452,6 +540,9 @@ void MyWidget::mouseReleaseEvent(QMouseEvent *event)
 		gesture_ == Gesture::Overlay && !gesture_multiple_buttons_)
 		overlay_.Release(event->pos(), QSize(width(), height()), overlay_.Snapshot());
 #endif
+	if (event->button() == gesture_button_ && gesture_button_ == Qt::LeftButton && gesture_ == Gesture::Link &&
+		LinkContains(event->pos()))
+		QDesktopServices::openUrl(QUrl(link_url_));
 	if (event->button() == gesture_button_ && gesture_ == Gesture::Reset)
 	{
 		// Only a right-button gesture started outside the controls can reset ROI.

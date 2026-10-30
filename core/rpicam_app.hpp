@@ -174,6 +174,7 @@ public:
 	bool SupportsScalerCrops() const;
 	void SetPreviewRoiCallback(std::function<void(float, float, float, float)> cb);
 	bool SetPreviewRtRoiOverlay(std::shared_ptr<const rt_roi::Config> config);
+	bool SetPreviewClickTarget(double x, double y, double width, double height, const std::string &url);
 	rt_roi::State GetRtRoiState();
 	void SetRtRoiValue(const std::string &parameter, double value);
 	StreamInfo GetStreamInfo(Stream const *stream) const;

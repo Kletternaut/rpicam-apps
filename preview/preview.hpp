@@ -55,6 +55,14 @@ public:
 	{
 		return false;
 	}
+	// Optional preview-only click target used by overlays that link to a web page.
+	// Coordinates are normalised to the full preview image. Non-interactive
+	// preview backends simply ignore it.
+	virtual bool SetClickTarget(double x, double y, double width, double height, const std::string &url)
+	{
+		(void)x; (void)y; (void)width; (void)height; (void)url;
+		return false;
+	}
 	virtual void SetInfoText(const std::string &text)
 	{
 	}

@@ -1,0 +1,11 @@
+{
+    "svg_overlay": {
+        "svg_path": "/usr/local/share/rpi-camera-assets/kletternaut.svg",
+        "x": 1,
+        "y": 1,
+        "width": 0.2,
+        "height": 0.2,
+        "opacity": 1,
+        "url": "https://github.com/Kletternaut"
+    }
+}

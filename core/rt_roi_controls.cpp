@@ -100,6 +100,13 @@ bool RPiCamApp::SetPreviewRtRoiOverlay(std::shared_ptr<const rt_roi::Config> con
 		[this](const std::string &parameter, double value) { SetRtRoiValue(parameter, value); });
 }
 
+bool RPiCamApp::SetPreviewClickTarget(double x, double y, double width, double height, const std::string &url)
+{
+	if (!preview_)
+		return false;
+	return preview_->SetClickTarget(x, y, width, height, url);
+}
+
 rt_roi::State RPiCamApp::GetRtRoiState()
 {
 	std::lock_guard<std::mutex> lock(control_mutex_);
