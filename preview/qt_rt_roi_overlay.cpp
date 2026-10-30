@@ -12,13 +12,29 @@
 
 namespace
 {
-constexpr double canvas_width = 400, canvas_height = 80;
-constexpr double track_left = 70, track_right = 330;
+constexpr double canvas_height = 42;
+constexpr double track_left = 50, track_right_margin = 50;
 
 QRectF bounds(const rt_roi::Config &config, const rt_roi::Control &control, const QSize &size)
 {
 	return { control.x * size.width(), control.y * size.height(),
 			 control.width * config.scale * size.width(), control.height * config.scale * size.height() };
+}
+
+// The canvas is a fixed-height virtual surface whose width follows the actual
+// on-screen rectangle. Both scale factors then stay equal, so circles, buttons
+// and text keep their shape at any window size; only the track stretches.
+double canvasWidth(const rt_roi::Config &config, const rt_roi::Control &control, const QSize &size)
+{
+	const QRectF rectangle = bounds(config, control, size);
+	if (rectangle.width() <= 0 || rectangle.height() <= 0)
+		return 280;
+	return canvas_height * rectangle.width() / rectangle.height();
+}
+
+double trackRight(double width)
+{
+	return width - track_right_margin;
 }
 
 QRectF toggleBounds(const rt_roi::Config &config, const QSize &size)
@@ -37,7 +53,10 @@ QPointF logicalPosition(const rt_roi::Config &config, const rt_roi::Control &con
 						const QPointF &position, const QSize &size)
 {
 	const QRectF rectangle = bounds(config, control, size);
-	return { (position.x() - rectangle.x()) * canvas_width / rectangle.width(),
+	if (rectangle.width() <= 0 || rectangle.height() <= 0)
+		return { 0, 0 };
+	const double width = canvasWidth(config, control, size);
+	return { (position.x() - rectangle.x()) * width / rectangle.width(),
 			 (position.y() - rectangle.y()) * canvas_height / rectangle.height() };
 }
 
@@ -129,19 +148,22 @@ void QtRtRoiOverlay::Paint(QPainter &painter, const QSize &size, const rt_roi::S
 			hasSupportedMode(control, state, minimum, maximum);
 		const double fraction = available && maximum > minimum ?
 			std::clamp((value->second - minimum) / (maximum - minimum), 0.0, 1.0) : 0;
-		const QString thumb = QString::number(track_left + (track_right - track_left) * fraction, 'f', 2);
+		const double width = canvasWidth(*config_, control, size);
+		const double right_track = trackRight(width);
+		const QString thumb = QString::number(track_left + (right_track - track_left) * fraction, 'f', 2);
 		const QString active = available ? accent : foreground;
-		const QByteArray svg = (QStringLiteral("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 80\">") +
-			"<rect x=\"0\" y=\"0\" width=\"400\" height=\"80\" rx=\"10\" fill=\"" + background +
+		const QByteArray svg = (QStringLiteral("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ") +
+			QString::number(width, 'f', 2) + QStringLiteral(" 42\">") +
+			"<rect x=\"0\" y=\"0\" width=\"" + QString::number(width, 'f', 2) + "\" height=\"42\" rx=\"6\" fill=\"" + background +
 			"\" fill-opacity=\"" + QString::number(config_->background_opacity) + "\"/>" +
 			"<g fill=\"none\" stroke=\"" + foreground + "\" stroke-width=\"2\">" +
-			"<rect x=\"12\" y=\"37\" width=\"36\" height=\"32\" rx=\"6\"/>" +
-			"<rect x=\"352\" y=\"37\" width=\"36\" height=\"32\" rx=\"6\"/>" +
-			"<path d=\"M22 53h16 M362 53h16 M370 45v16\"/>" +
-			"<path d=\"M70 53H330\" stroke-opacity=\"0.45\" stroke-width=\"4\" stroke-linecap=\"round\"/>" +
-			"</g><path d=\"M70 53H" + thumb + "\" stroke=\"" + active +
-			"\" stroke-width=\"4\" stroke-linecap=\"round\"/><circle cx=\"" + thumb +
-			"\" cy=\"53\" r=\"7\" fill=\"" + active + "\"/></svg>").toUtf8();
+			"<rect x=\"8\" y=\"17\" width=\"26\" height=\"23\" rx=\"5\"/>" +
+			"<rect x=\"" + QString::number(width - 34.0, 'f', 2) + "\" y=\"17\" width=\"26\" height=\"23\" rx=\"5\"/>" +
+			"<path d=\"M14 28h14 M" + QString::number(width - 28.0, 'f', 2) + " 28h14 M" + QString::number(width - 21.0, 'f', 2) + " 21v14\"/>" +
+			"<path d=\"M50 28H" + QString::number(right_track, 'f', 2) + "\" stroke-opacity=\"0.45\" stroke-width=\"3\" stroke-linecap=\"round\"/>" +
+			"</g><path d=\"M50 28H" + thumb + "\" stroke=\"" + active +
+			"\" stroke-width=\"3\" stroke-linecap=\"round\"/><circle cx=\"" + thumb +
+			"\" cy=\"28\" r=\"5\" fill=\"" + active + "\"/></svg>").toUtf8();
 		auto &cached = cache_[index];
 		if (!cached.renderer || cached.source != svg)
 		{
@@ -157,10 +179,10 @@ void QtRtRoiOverlay::Paint(QPainter &painter, const QSize &size, const rt_roi::S
 		cached.renderer->render(&painter, rectangle);
 		// Text uses Qt's native font handling; only the controls themselves are SVG.
 		painter.translate(rectangle.topLeft());
-		painter.scale(rectangle.width() / canvas_width, rectangle.height() / canvas_height);
+		painter.scale(rectangle.width() / width, rectangle.height() / canvas_height);
 		painter.setPen(QColor(foreground));
 		QFont font = painter.font();
-		font.setPixelSize(16);
+		font.setPixelSize(12);
 		painter.setFont(font);
 		QString label = QString::fromStdString(control.label);
 		QString displayed = QStringLiteral("unavailable");
@@ -171,16 +193,18 @@ void QtRtRoiOverlay::Paint(QPainter &painter, const QSize &size, const rt_roi::S
 				QString::fromStdString(control.choices[choice]) : QString::number(value->second, 'g', 5);
 		}
 		label += QStringLiteral(": ") + displayed;
-		painter.drawText(QRectF(12, 6, 376, 25), Qt::AlignLeft | Qt::AlignVCenter,
-						 QFontMetrics(font).elidedText(label, Qt::ElideRight, 376));
+		painter.drawText(QRectF(40, 1, width - 80, 15), Qt::AlignLeft | Qt::AlignVCenter,
+						 QFontMetrics(font).elidedText(label, Qt::ElideRight, std::max(1, int(width - 80))));
 		painter.restore();
 	}
 	// Paint last so the toggle wins both visually and in hit testing.
 	const QRectF toggle = toggleBounds(*config_, size);
 	painter.save();
 	painter.setOpacity(config_->toggle.opacity);
-	const QByteArray toggle_svg = (QStringLiteral("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 40\">") +
-		"<rect x=\"1\" y=\"1\" width=\"98\" height=\"38\" rx=\"7\" fill=\"" + background +
+	const double toggle_width = toggle.height() > 0 ? std::max(60.0, 40.0 * toggle.width() / toggle.height()) : 100.0;
+	const QByteArray toggle_svg = (QStringLiteral("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ") +
+		QString::number(toggle_width, 'f', 2) + QStringLiteral(" 40\">") +
+		"<rect x=\"1\" y=\"1\" width=\"" + QString::number(toggle_width - 2.0, 'f', 2) + "\" height=\"38\" rx=\"7\" fill=\"" + background +
 		"\" fill-opacity=\"0.8\" stroke=\"" + accent + "\" stroke-width=\"2\"/></svg>").toUtf8();
 	if (!toggle_cache_.renderer || toggle_cache_.source != toggle_svg)
 	{
@@ -192,12 +216,12 @@ void QtRtRoiOverlay::Paint(QPainter &painter, const QSize &size, const rt_roi::S
 	}
 	toggle_cache_.renderer->render(&painter, toggle);
 	painter.translate(toggle.topLeft());
-	painter.scale(toggle.width() / 100, toggle.height() / 40);
+	painter.scale(toggle.width() / toggle_width, toggle.height() / 40);
 	painter.setPen(QColor(foreground));
 	QFont toggle_font = painter.font();
 	toggle_font.setPixelSize(17);
 	painter.setFont(toggle_font);
-	painter.drawText(QRectF(4, 2, 92, 36), Qt::AlignCenter,
+	painter.drawText(QRectF(4, 2, toggle_width - 8, 36), Qt::AlignCenter,
 					 controls_visible_ ? QStringLiteral("Hide") : QStringLiteral("Controls"));
 	painter.restore();
 
@@ -205,8 +229,10 @@ void QtRtRoiOverlay::Paint(QPainter &painter, const QSize &size, const rt_roi::S
 	const QRectF reset = resetBounds(*config_, size);
 	painter.save();
 	painter.setOpacity(config_->reset.opacity);
-	const QByteArray reset_svg = (QStringLiteral("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 40\">") +
-		"<rect x=\"1\" y=\"1\" width=\"98\" height=\"38\" rx=\"7\" fill=\"" + background +
+	const double reset_width = reset.height() > 0 ? std::max(60.0, 40.0 * reset.width() / reset.height()) : 100.0;
+	const QByteArray reset_svg = (QStringLiteral("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ") +
+		QString::number(reset_width, 'f', 2) + QStringLiteral(" 40\">") +
+		"<rect x=\"1\" y=\"1\" width=\"" + QString::number(reset_width - 2.0, 'f', 2) + "\" height=\"38\" rx=\"7\" fill=\"" + background +
 		"\" fill-opacity=\"0.8\" stroke=\"" + accent + "\" stroke-width=\"2\"/></svg>").toUtf8();
 	if (!reset_cache_.renderer || reset_cache_.source != reset_svg)
 	{
@@ -218,12 +244,12 @@ void QtRtRoiOverlay::Paint(QPainter &painter, const QSize &size, const rt_roi::S
 	}
 	reset_cache_.renderer->render(&painter, reset);
 	painter.translate(reset.topLeft());
-	painter.scale(reset.width() / 100, reset.height() / 40);
+	painter.scale(reset.width() / reset_width, reset.height() / 40);
 	painter.setPen(QColor(foreground));
 	QFont reset_font = painter.font();
 	reset_font.setPixelSize(17);
 	painter.setFont(reset_font);
-	painter.drawText(QRectF(4, 2, 92, 36), Qt::AlignCenter, QStringLiteral("Reset"));
+	painter.drawText(QRectF(4, 2, reset_width - 8, 36), Qt::AlignCenter, QStringLiteral("Reset"));
 	painter.restore();
 }
 
@@ -303,14 +329,16 @@ void QtRtRoiOverlay::Press(int index, const QPointF &position, const QSize &size
 	if (value == state.values.end())
 		return;
 	const QPointF point = logicalPosition(*config_, control, position, size);
-	if (QRectF(12, 37, 36, 32).contains(point))
+	const double width = canvasWidth(*config_, control, size);
+	const double right_track = trackRight(width);
+	if (QRectF(8, 17, 26, 23).contains(point))
 		SetValue(index, value->second - control.step, state);
-	else if (QRectF(352, 37, 36, 32).contains(point))
+	else if (QRectF(width - 34.0, 17, 26, 23).contains(point))
 		SetValue(index, value->second + control.step, state);
-	else if (QRectF(track_left - 8, 37, track_right - track_left + 16, 32).contains(point))
+	else if (QRectF(track_left - 8, 17, right_track - track_left + 16, 24).contains(point))
 	{
 		dragging_ = index;
-		SetSlider(index, (point.x() - track_left) / (track_right - track_left), state);
+		SetSlider(index, (point.x() - track_left) / (right_track - track_left), state);
 	}
 }
 
@@ -326,7 +354,8 @@ void QtRtRoiOverlay::Drag(const QPointF &position, const QSize &size, const rt_r
 	if (!Visible(state) || dragging_ < 0 || size.width() <= 0 || size.height() <= 0)
 		return;
 	const QPointF point = logicalPosition(*config_, config_->controls[dragging_], position, size);
-	SetSlider(dragging_, (point.x() - track_left) / (track_right - track_left), state);
+	const double right_track = trackRight(canvasWidth(*config_, config_->controls[dragging_], size));
+	SetSlider(dragging_, (point.x() - track_left) / (right_track - track_left), state);
 }
 
 void QtRtRoiOverlay::Wheel(int index, int delta, const rt_roi::State &state)
