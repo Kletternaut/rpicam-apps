@@ -1,6 +1,6 @@
 project('rpicam-apps', 'c', 'cpp',
         meson_version : '>= 0.64.0',
-        version : '1.14.0',
+        version : '1.15.0',
         default_options : [
             'werror=true',
             'warning_level=3',
@@ -107,5 +107,6 @@ summary({
             'IMX500 postprocessing' : get_option('enable_imx500'),
             'rpicam-rt' : rpicam_rt_enabled,
             'GStreamer preview postprocessing' : enable_gstreamer,
+            'prod test app' : get_option('enable_prod'),
         },
         bool_yn : true, section : 'Build configuration')
