@@ -18,6 +18,7 @@
  *   framerate:<float>        target frame rate in fps (>0); framerate:0 restores AE-managed rate
  *   awb:<mode>               auto|incandescent|tungsten|fluorescent|indoor|daylight|cloudy|custom
  *   awbgains:<r>,<b>         manual colour gains, e.g. "awbgains:1.5,1.2"
+ *   colour_temp:<K>          manual colour temperature in Kelvin (>0); colour_temp:0 restores AWB
  *   roi:<x>,<y>,<w>,<h>     relative values 0.0-1.0 relative to sensor area
  *   hdr:<mode>               off|auto|sensor|single-exp
  *
@@ -374,6 +375,25 @@ private:
 				}
 				else
 					LOG_ERROR("ControlSocket: invalid awbgains (expect r,b with r>0 b>0): " << val);
+			}
+			else if (key == "colour_temp")
+			{
+				const int kelvin = std::stoi(val);
+				if (kelvin == 0)
+				{
+					// Restore automatic AWB; a subsequent colour_temp re-disables it.
+					cl.set(libcamera::controls::AwbEnable, true);
+					LOG(1, "ControlSocket: ColourTemperature=auto");
+				}
+				else if (kelvin > 0)
+				{
+					const int32_t k = std::clamp(kelvin, 1000, 20000);
+					cl.set(libcamera::controls::AwbEnable, false);
+					cl.set(libcamera::controls::ColourTemperature, k);
+					LOG(1, "ControlSocket: ColourTemperature=" << k << " K");
+				}
+				else
+					LOG_ERROR("ControlSocket: colour_temp must be >= 0");
 			}
 			else if (key == "roi")
 			{
