@@ -342,15 +342,15 @@ private:
 				// clang-format off
 				static const std::map<std::string, int32_t> awb_table =
 				{
-					{ "auto",         libcamera::controls::AwbAuto        },
-					{ "normal",       libcamera::controls::AwbAuto        },
-					{ "incandescent", libcamera::controls::AwbIncandescent },
-					{ "tungsten",     libcamera::controls::AwbTungsten     },
-					{ "fluorescent",  libcamera::controls::AwbFluorescent  },
-					{ "indoor",       libcamera::controls::AwbIndoor       },
-					{ "daylight",     libcamera::controls::AwbDaylight     },
-					{ "cloudy",       libcamera::controls::AwbCloudy       },
-					{ "custom",       libcamera::controls::AwbCustom       },
+					{ "auto",         libcamera::controls::AwbModeAuto        },
+					{ "normal",       libcamera::controls::AwbModeAuto        },
+					{ "incandescent", libcamera::controls::AwbModeIncandescent },
+					{ "tungsten",     libcamera::controls::AwbModeTungsten     },
+					{ "fluorescent",  libcamera::controls::AwbModeFluorescent  },
+					{ "indoor",       libcamera::controls::AwbModeIndoor       },
+					{ "daylight",     libcamera::controls::AwbModeDaylight     },
+					{ "cloudy",       libcamera::controls::AwbModeCloudy       },
+					{ "custom",       libcamera::controls::AwbModeCustom       },
 				};
 				// clang-format on
 				const auto it = awb_table.find(val);
@@ -455,12 +455,12 @@ private:
 				// clang-format off
 				static const std::map<std::string, int32_t> metering_table =
 				{
-					{ "centre",  libcamera::controls::MeteringCentreWeighted },
-					{ "center",  libcamera::controls::MeteringCentreWeighted },
-					{ "spot",    libcamera::controls::MeteringSpot           },
-					{ "average", libcamera::controls::MeteringMatrix         },
-					{ "matrix",  libcamera::controls::MeteringMatrix         },
-					{ "custom",  libcamera::controls::MeteringCustom         },
+					{ "centre",  libcamera::controls::AeMeteringModeCentreWeighted },
+					{ "center",  libcamera::controls::AeMeteringModeCentreWeighted },
+					{ "spot",    libcamera::controls::AeMeteringModeSpot           },
+					{ "average", libcamera::controls::AeMeteringModeMatrix         },
+					{ "matrix",  libcamera::controls::AeMeteringModeMatrix         },
+					{ "custom",  libcamera::controls::AeMeteringModeCustom         },
 				};
 				// clang-format on
 				const auto it = metering_table.find(val);
@@ -477,11 +477,11 @@ private:
 				// clang-format off
 				static const std::map<std::string, int32_t> exposure_table =
 				{
-					{ "normal", libcamera::controls::ExposureNormal },
-					{ "sport",  libcamera::controls::ExposureShort  },
-					{ "short",  libcamera::controls::ExposureShort  },
-					{ "long",   libcamera::controls::ExposureLong   },
-					{ "custom", libcamera::controls::ExposureCustom },
+					{ "normal", libcamera::controls::AeExposureModeNormal },
+					{ "sport",  libcamera::controls::AeExposureModeShort  },
+					{ "short",  libcamera::controls::AeExposureModeShort  },
+					{ "long",   libcamera::controls::AeExposureModeLong   },
+					{ "custom", libcamera::controls::AeExposureModeCustom },
 				};
 				// clang-format on
 				const auto it = exposure_table.find(val);
